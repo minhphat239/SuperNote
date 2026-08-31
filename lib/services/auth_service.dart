@@ -1,91 +1,60 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as auth;
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class AuthService extends ChangeNotifier {
-  final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isLoggedIn = false;
+  bool _isLoading = false;
+  _LocalUser? _user;
 
-  auth.User? get currentUser => _firebaseAuth.currentUser;
-  bool get isLoggedIn => currentUser != null;
+  _LocalUser? get user => _user;
+  bool get isLoggedIn => _isLoggedIn;
+  bool get isLoading => _isLoading;
+  String? get userId => _user?.id;
+  String? get userName => _user?.name;
+  String? get userEmail => _user?.email;
+  String? get userPhoto => _user?.photoURL;
 
-  Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
+  Stream<bool> get authStateChanges => Stream.value(_isLoggedIn);
 
-  Future<auth.UserCredential> signInWithEmail(String email, String password) async {
-    try {
-      final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      await _ensureUserDocument(credential.user);
-      notifyListeners();
-      return credential;
-    } catch (e) {
-      rethrow;
-    }
+  AuthService();
+
+  Future<bool> signInWithGoogle() async {
+    return signInAsLocal();
   }
 
-  Future<auth.UserCredential> signUpWithEmail(String email, String password) async {
-    try {
-      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      await _ensureUserDocument(credential.user);
-      notifyListeners();
-      return credential;
-    } catch (e) {
-      rethrow;
-    }
+  Future<bool> signInWithEmail(String email, String password) async {
+    return signInAsLocal();
   }
 
-  Future<auth.UserCredential> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  Future<bool> registerWithEmail(String email, String password, String name) async {
+    _user = _LocalUser(id: 'local_user', name: name, email: email);
+    _isLoggedIn = true;
+    _isLoading = false;
+    notifyListeners();
+    return true;
+  }
 
-      if (googleUser == null) {
-        throw Exception('Google sign in was cancelled');
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      final credential = auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
-      await _ensureUserDocument(userCredential.user);
-      notifyListeners();
-      return userCredential;
-    } catch (e) {
-      rethrow;
-    }
+  Future<bool> signInAsLocal() async {
+    _user = _LocalUser(id: 'local_user', name: 'Local User');
+    _isLoggedIn = true;
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
-    await _firebaseAuth.signOut();
+    _user = null;
+    _isLoggedIn = false;
     notifyListeners();
   }
+}
 
-  Future<void> _ensureUserDocument(auth.User? user) async {
-    if (user == null) return;
+class _LocalUser {
+  final String id;
+  final String? name;
+  final String? email;
+  final String? photoURL;
 
-    final docRef = _firestore.collection('users').doc(user.uid);
-    final doc = await docRef.get();
-
-    if (!doc.exists) {
-      await docRef.set({
-        'email': user.email,
-        'displayName': user.displayName,
-        'photoURL': user.photoURL,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
-  String? get userId => currentUser?.uid;
+  _LocalUser({required this.id, this.name, this.email, this.photoURL});
 }
