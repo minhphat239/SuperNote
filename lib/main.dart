@@ -16,7 +16,7 @@ void main() async {
   await storageService.init();
 
   final authService = AuthService();
-  final noteService = NoteService(storageService);
+  final noteService = NoteService(storageService, authService);
   final syncService = SyncService(noteService);
 
   runApp(SuperNoteApp(
