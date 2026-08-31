@@ -1,17 +1,15 @@
-// TODO: Run 'flutterfire configure' to generate this file
-// This is a placeholder file
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    return linux;
+    return android;
   }
 
-  static const FirebaseOptions linux = FirebaseOptions(
-    apiKey: 'YOUR_API_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_STORAGE_BUCKET',
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyA-qi3Csnn3qbmothMVlQ4MMpYHw5VrTqs',
+    appId: '1:889510277964:android:0d719c79311ee4ffe7d5e9',
+    messagingSenderId: '889510277964',
+    projectId: 'supernote-c5604',
+    storageBucket: 'supernote-c5604.firebasestorage.app',
   );
 }

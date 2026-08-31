@@ -3,15 +3,23 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/update_info.dart';
 
 class UpdateService {
   static const String _repoOwner = 'minhphat239';
   static const String _repoName = 'SuperNote';
   static const String _lastVersionKey = 'last_installed_version';
+  static const String _skipVersionKey = 'skipped_version';
 
   static String get _apiUrl =>
       'https://api.github.com/repos/$_repoOwner/$_repoName/releases/latest';
+
+  static String getReleaseUrl() =>
+      'https://github.com/$_repoOwner/$_repoName/releases';
+
+  static bool get isAndroid => Platform.isAndroid;
+  static bool get isLinux => Platform.isLinux;
 
   static Future<UpdateInfo?> checkForUpdate() async {
     try {
@@ -29,6 +37,8 @@ class UpdateService {
       final currentVersion = packageInfo.version;
 
       if (_isNewerVersion(updateInfo.version, currentVersion)) {
+        final skippedVersion = await _getSkippedVersion();
+        if (skippedVersion == updateInfo.version) return null;
         return updateInfo;
       }
       return null;
@@ -50,11 +60,21 @@ class UpdateService {
     return false;
   }
 
+  static Future<bool> openUpdatePage() async {
+    final url = Uri.parse(getReleaseUrl());
+    if (await canLaunchUrl(url)) {
+      return await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+    return false;
+  }
+
   static Future<bool> downloadUpdate(
     String downloadUrl,
     String fileName,
     Function(double) onProgress,
   ) async {
+    if (!isLinux) return false;
+
     try {
       final response = await http.get(
         Uri.parse(downloadUrl),
@@ -88,11 +108,23 @@ class UpdateService {
     await prefs.setString(_lastVersionKey, packageInfo.version);
   }
 
+  static Future<void> skipVersion(String version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_skipVersionKey, version);
+  }
+
+  static Future<String?> _getSkippedVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_skipVersionKey);
+  }
+
+  static Future<void> clearSkippedVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_skipVersionKey);
+  }
+
   static Future<String> getCurrentVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
     return packageInfo.version;
   }
-
-  static String getReleaseUrl() =>
-      'https://github.com/$_repoOwner/$_repoName/releases';
 }

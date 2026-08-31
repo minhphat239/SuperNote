@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/note.dart';
+import '../models/update_info.dart';
 import '../services/note_service.dart';
 import '../services/sync_service.dart';
+import '../services/update_service.dart';
 import 'note_editor_screen.dart';
 import 'auth_screen.dart';
 import '../services/auth_service.dart';
@@ -26,11 +28,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Note> _notes = [];
   bool _isLoading = true;
+  UpdateInfo? _updateInfo;
+  bool _isCheckingUpdate = true;
+  bool _isDownloading = false;
+  double _downloadProgress = 0;
+  bool _updateSuccess = false;
 
   @override
   void initState() {
     super.initState();
     _loadNotes();
+    _checkForUpdate();
     widget.syncService.addListener(_onSyncChanged);
   }
 
@@ -52,6 +60,54 @@ class _HomeScreenState extends State<HomeScreen> {
       _notes = notes;
       _isLoading = false;
     });
+  }
+
+  Future<void> _checkForUpdate() async {
+    setState(() {
+      _isCheckingUpdate = true;
+      _updateSuccess = false;
+    });
+
+    final update = await UpdateService.checkForUpdate();
+
+    setState(() {
+      _updateInfo = update;
+      _isCheckingUpdate = false;
+    });
+  }
+
+  Future<void> _handleUpdate() async {
+    if (_updateInfo == null) return;
+
+    if (UpdateService.isAndroid) {
+      await UpdateService.openUpdatePage();
+    } else if (UpdateService.isLinux && _updateInfo!.hasDownloadUrl) {
+      setState(() {
+        _isDownloading = true;
+        _downloadProgress = 0;
+      });
+
+      final success = await UpdateService.downloadUpdate(
+        _updateInfo!.downloadUrl,
+        _updateInfo!.assetName,
+        (progress) {
+          setState(() => _downloadProgress = progress);
+        },
+      );
+
+      setState(() {
+        _isDownloading = false;
+        _updateSuccess = success;
+        if (success) _updateInfo = null;
+      });
+    }
+  }
+
+  Future<void> _skipVersion() async {
+    if (_updateInfo != null) {
+      await UpdateService.skipVersion(_updateInfo!.version);
+      setState(() => _updateInfo = null);
+    }
   }
 
   Future<void> _createNote() async {
@@ -159,46 +215,140 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _notes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.note_add, size: 64, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No notes yet',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.grey),
+      body: Column(
+        children: [
+          _buildUpdateBanner(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _notes.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.note_add, size: 64, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No notes yet',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap + to create your first note',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () async {
+                          await widget.syncService.sync();
+                          await _loadNotes();
+                        },
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _notes.length,
+                          itemBuilder: (context, index) {
+                            final note = _notes[index];
+                            return _buildNoteCard(note);
+                          },
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap + to create your first note',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    await widget.syncService.sync();
-                    await _loadNotes();
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: _notes.length,
-                    itemBuilder: (context, index) {
-                      final note = _notes[index];
-                      return _buildNoteCard(note);
-                    },
-                  ),
-                ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createNote,
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Widget _buildUpdateBanner() {
+    if (_isCheckingUpdate) {
+      return const SizedBox.shrink();
+    }
+
+    if (_updateSuccess) {
+      return Material(
+        color: Colors.green.shade50,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Successfully Updated!',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _checkForUpdate,
+                child: const Text('Check Again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_updateInfo != null) {
+      return Material(
+        color: Colors.blue.shade50,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              const Icon(Icons.system_update, color: Colors.blue, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'New version available!',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'v${_updateInfo!.version}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (_isDownloading) ...[
+                SizedBox(
+                  width: 80,
+                  child: LinearProgressIndicator(value: _downloadProgress),
+                ),
+                const SizedBox(width: 8),
+                Text('${(_downloadProgress * 100).toInt()}%'),
+              ] else ...[
+                TextButton(
+                  onPressed: _skipVersion,
+                  child: const Text('Skip'),
+                ),
+                ElevatedButton(
+                  onPressed: _handleUpdate,
+                  child: const Text('Update'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildNoteCard(Note note) {

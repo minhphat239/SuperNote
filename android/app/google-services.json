@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "889510277964",
+    "project_id": "supernote-c5604",
+    "storage_bucket": "supernote-c5604.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889510277964:android:0d719c79311ee4ffe7d5e9",
+        "android_client_info": {
+          "package_name": "com.example.super_note"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-qi3Csnn3qbmothMVlQ4MMpYHw5VrTqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
