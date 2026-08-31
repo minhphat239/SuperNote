@@ -112,6 +112,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            Card(
+              color: Colors.orange.shade50,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: Text(
+                    'UPDATE TESTING',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildUpdateSection(),
           ],
         ),
