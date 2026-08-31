@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 
 class AuthService extends ChangeNotifier {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   auth.User? get currentUser => _firebaseAuth.currentUser;
@@ -39,7 +41,32 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<auth.UserCredential> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        throw Exception('Google sign in was cancelled');
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+      await _ensureUserDocument(userCredential.user);
+      notifyListeners();
+      return userCredential;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
+    await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
     notifyListeners();
   }
@@ -54,6 +81,7 @@ class AuthService extends ChangeNotifier {
       await docRef.set({
         'email': user.email,
         'displayName': user.displayName,
+        'photoURL': user.photoURL,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
