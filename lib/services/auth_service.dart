@@ -35,6 +35,10 @@ class AuthService extends ChangeNotifier {
     return true;
   }
 
+  Future<bool> signUpWithEmail(String email, String password,
+          [String name = 'User']) =>
+      registerWithEmail(email, password, name);
+
   Future<bool> signInAsLocal() async {
     _user = _LocalUser(id: 'local_user', name: 'Local User');
     _isLoggedIn = true;

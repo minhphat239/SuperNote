@@ -14,19 +14,14 @@ import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
 import 'shared/widgets/glass_widgets.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+bool get isDesktopPlatform {
+  if (kIsWeb) return false;
+  return defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+}
 
-  if (!kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS)) {
-    try {
-      // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    } catch (e) {
-      debugPrint('Firebase init skipped: $e');
-    }
-  }
-
+Future<void> _bootstrapDesktop() async {
   await windowManager.ensureInitialized();
 
   const windowOptions = WindowOptions(
@@ -45,6 +40,16 @@ void main() async {
     await windowManager.show();
     await windowManager.focus();
   });
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // window_manager is NOT supported on Android/iOS — calling it there
+  // throws MissingPluginException and leaves the screen black.
+  if (isDesktopPlatform) {
+    await _bootstrapDesktop();
+  }
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -145,102 +150,110 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final desktop = isDesktopPlatform;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ===== CUSTOM TITLE BAR =====
-          GestureDetector(
-            onDoubleTap: () async {
-              final isMaximized = await windowManager.isMaximized();
-              if (isMaximized) {
-                windowManager.unmaximize();
-              } else {
-                windowManager.maximize();
-              }
-            },
-            child: MouseRegion(
-              cursor: SystemMouseCursors.move,
-              child: Container(
-                height: 32,
-                color: AppColors.surface,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DragToMoveArea(
-                        child: Container(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  gradient: AppGradient.primary,
-                                  borderRadius: BorderRadius.circular(4),
+          // ===== CUSTOM TITLE BAR (desktop only) =====
+          if (desktop)
+            GestureDetector(
+              onDoubleTap: () async {
+                final isMaximized = await windowManager.isMaximized();
+                if (isMaximized) {
+                  windowManager.unmaximize();
+                } else {
+                  windowManager.maximize();
+                }
+              },
+              child: MouseRegion(
+                cursor: SystemMouseCursors.move,
+                child: Container(
+                  height: 32,
+                  color: AppColors.surface,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DragToMoveArea(
+                          child: Container(
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.only(left: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    gradient: AppGradient.primary,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Icon(Icons.task_alt_rounded,
+                                      size: 8, color: Colors.white),
                                 ),
-                                child: const Icon(Icons.task_alt_rounded,
-                                    size: 8, color: Colors.white),
-                              ),
-                              const SizedBox(width: 6),
-                              Text('SuperNote',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textMuted
-                                          .withOpacity(0.6))),
-                            ],
+                                const SizedBox(width: 6),
+                                Text('SuperNote',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textMuted
+                                            .withOpacity(0.6))),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const WindowControls(),
-                  ],
+                      const WindowControls(),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
           // ===== MAIN CONTENT =====
           Expanded(
-            child: IndexedStack(index: _currentIndex, children: _screens),
+            child: SafeArea(
+              bottom: false,
+              child: IndexedStack(index: _currentIndex, children: _screens),
+            ),
           ),
 
           // ===== BOTTOM NAVIGATION (3 tabs: Tasks, Calendar, Settings) =====
-          Container(
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(
-                  top: BorderSide(color: AppColors.border, width: 0.5)),
-            ),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: _onNavTap,
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              height: 64,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.task_alt_outlined, size: 22),
-                  selectedIcon: Icon(Icons.task_alt_rounded,
-                      size: 22, color: AppColors.primary),
-                  label: 'Tasks',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.calendar_today_outlined, size: 22),
-                  selectedIcon: Icon(Icons.calendar_today_rounded,
-                      size: 22, color: AppColors.primary),
-                  label: 'Calendar',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined, size: 22),
-                  selectedIcon: Icon(Icons.settings_rounded,
-                      size: 22, color: AppColors.primary),
-                  label: 'Settings',
-                ),
-              ],
+          SafeArea(
+            top: false,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(
+                    top: BorderSide(color: AppColors.border, width: 0.5)),
+              ),
+              child: NavigationBar(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: _onNavTap,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                height: 64,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.task_alt_outlined, size: 22),
+                    selectedIcon: Icon(Icons.task_alt_rounded,
+                        size: 22, color: AppColors.primary),
+                    label: 'Tasks',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.calendar_today_outlined, size: 22),
+                    selectedIcon: Icon(Icons.calendar_today_rounded,
+                        size: 22, color: AppColors.primary),
+                    label: 'Calendar',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.settings_outlined, size: 22),
+                    selectedIcon: Icon(Icons.settings_rounded,
+                        size: 22, color: AppColors.primary),
+                    label: 'Settings',
+                  ),
+                ],
+              ),
             ),
           ),
         ],
