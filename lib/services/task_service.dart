@@ -18,10 +18,19 @@ class TaskService {
       _tasks.where((t) => t.status == TaskStatus.snoozed).toList();
 
   Future<void> init() async {
-    await _loadTasks();
+    try {
+      await _loadTasks();
+    } catch (e) {
+      // Ignore malformed old data instead of blocking the whole app.
+      _tasks = [];
+    }
     await _notificationService.init();
     _setupNotificationHandlers();
-    await _rescheduleAllNotifications();
+    try {
+      await _rescheduleAllNotifications();
+    } catch (_) {
+      // Notification permission or alarm policy must not block the UI.
+    }
   }
 
   void _setupNotificationHandlers() {
@@ -39,8 +48,13 @@ class TaskService {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString(_tasksKey);
     if (data != null) {
-      final list = jsonDecode(data) as List;
-      _tasks = list.map((e) => Task.fromMap(e)).toList();
+      final decoded = jsonDecode(data);
+      if (decoded is List) {
+        _tasks = decoded
+            .whereType<Map>()
+            .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
+      }
     }
   }
 

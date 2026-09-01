@@ -47,15 +47,18 @@ class NotificationService {
       iOS: iosInit,
     );
 
-    await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationResponse,
-    );
-
-    await _createNotificationChannel();
-    await _requestPermissions();
-
-    _initialized = true;
+    try {
+      await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+      );
+      await _createNotificationChannel();
+      await _requestPermissions();
+      _initialized = true;
+    } catch (e) {
+      // Notifications must not prevent the task screen from opening.
+      debugPrint('Notification initialization failed: $e');
+    }
   }
 
   Future<void> _createNotificationChannel() async {
@@ -105,6 +108,8 @@ class NotificationService {
 
   Future<void> scheduleTaskNotification(Task task) async {
     if (_isLinux) return;
+    if (!_initialized) await init();
+    if (!_initialized) return;
     final deadline = task.deadline;
     if (deadline == null) return;
 
@@ -186,28 +191,50 @@ class NotificationService {
 
     const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledDate,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload,
-    );
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+    } catch (e) {
+      // Exact alarms may be denied on Android. Fall back to an inexact alarm.
+      try {
+        await _notifications.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledDate,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+        );
+      } catch (fallbackError) {
+        debugPrint('Notification scheduling failed: $fallbackError');
+      }
+    }
   }
 
   // ===== Cancel =====
 
   Future<void> cancelTaskNotifications(Task task) async {
     if (_isLinux) return;
+    if (!_initialized) await init();
+    if (!_initialized) return;
     await _notifications.cancel(task.id.hashCode);
     await _notifications.cancel(task.id.hashCode + 10000);
   }
 
   Future<void> cancelAllNotifications() async {
     if (_isLinux) return;
+    if (!_initialized) await init();
+    if (!_initialized) return;
     await _notifications.cancelAll();
   }
 
@@ -224,6 +251,8 @@ class NotificationService {
 
   Future<void> sendTestNotification() async {
     if (_isLinux) return;
+    if (!_initialized) await init();
+    if (!_initialized) return;
     const androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,

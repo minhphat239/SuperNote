@@ -12,7 +12,6 @@ import 'services/gemini_service.dart';
 import 'screens/task_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
-import 'shared/widgets/glass_widgets.dart';
 
 bool get isDesktopPlatform {
   if (kIsWeb) return false;
