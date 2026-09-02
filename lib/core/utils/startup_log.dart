@@ -15,7 +15,16 @@ class StartupLog {
 
   static Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      // Prefer external files dir so the log is visible without adb/root:
+      //   Android/data/<package>/files/startup_log.txt
+      Directory? dir;
+      try {
+        final ext = await getExternalStorageDirectory();
+        if (ext != null && await ext.exists()) dir = ext;
+      } catch (_) {
+        dir = null;
+      }
+      dir ??= await getApplicationDocumentsDirectory();
       _instance._file = File('${dir.path}/startup_log.txt');
       if (await _instance._file!.exists()) {
         await _instance._file!.delete();
