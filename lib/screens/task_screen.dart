@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/startup_log.dart';
 import '../core/utils/nlp_dual_stage.dart';
 import '../models/task.dart';
 import '../services/gemini_service.dart';
@@ -32,9 +33,11 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   void initState() {
     super.initState();
+    StartupLog.mark('taskScreen-initState');
     _taskSubscription = widget.taskService.taskStream.listen((_) {
       if (mounted) setState(() {});
     });
+    StartupLog.mark('taskScreen-subscribed');
   }
 
   @override

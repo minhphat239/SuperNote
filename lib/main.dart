@@ -10,6 +10,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/startup_log.dart';
 import 'l10n/app_localizations.dart';
 import 'services/language_service.dart';
 import 'services/storage_service.dart';
@@ -65,10 +66,13 @@ Future<void> _bootstrapDesktop() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StartupLog.init();
+  StartupLog.mark('main-start');
 
   // Initialize timezone data early — required for notification scheduling
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+  StartupLog.mark('timezone');
 
   try {
     await Firebase.initializeApp(
@@ -78,13 +82,16 @@ void main() async {
     // Never block startup on Firebase — app continues in local-only mode.
     debugPrint('Firebase init skipped/failed: $e');
   }
+  StartupLog.mark('firebase');
   await initializeDateFormatting('vi', null);
+  StartupLog.mark('dateformat');
 
   // window_manager is NOT supported on Android/iOS — calling it there
   // throws MissingPluginException and leaves the screen black.
   if (isDesktopPlatform) {
     await _bootstrapDesktop();
   }
+  StartupLog.mark('desktop');
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -96,17 +103,21 @@ void main() async {
   final authService = AuthService();
   final storageService = StorageService(authService: authService);
   await storageService.init();
+  StartupLog.mark('storage');
 
   final noteService = NoteService(storageService);
   final syncService = SyncService(noteService);
   final taskService = TaskService(authService: authService);
   await taskService.init();
+  StartupLog.mark('task-service');
 
   final geminiService = GeminiService();
   await geminiService.init();
+  StartupLog.mark('gemini');
 
   final themeService = ThemeService();
   await themeService.init();
+  StartupLog.mark('theme');
 
   CustomBackgroundService? customBackgroundService;
   try {
@@ -115,6 +126,7 @@ void main() async {
   } catch (_) {
     // CustomBackgroundService may not be available
   }
+  StartupLog.mark('custom-bg');
 
   final updateService = AutoUpdateService();
 
@@ -124,17 +136,21 @@ void main() async {
   } catch (_) {
     // Firestore may not be available — app continues with local-only mode
   }
+  StartupLog.mark('firestore');
 
   try {
     await FeedbackService().init();
   } catch (_) {}
+  StartupLog.mark('feedback');
 
   try {
     await AiParserService().init();
   } catch (_) {}
+  StartupLog.mark('ai-parser');
 
   final languageService = LanguageService();
   await languageService.init();
+  StartupLog.mark('language');
 
   // Listen to auth changes → reload per-user data
   authService.authStateChanges.listen((isLoggedIn) async {
@@ -143,6 +159,7 @@ void main() async {
     await taskService.reloadForUser(userId);
   });
 
+  StartupLog.mark('runApp');
   runApp(SuperNoteApp(
     noteService: noteService,
     syncService: syncService,
@@ -283,6 +300,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    StartupLog.mark('mainShell-initState');
     _screens = [
       TaskScreen(taskService: widget.taskService, geminiService: widget.geminiService),
       CalendarScreen(taskService: widget.taskService),
@@ -296,9 +314,11 @@ class _MainShellState extends State<MainShell> {
         languageService: widget.languageService,
       ),
     ];
+    StartupLog.mark('mainShell-screens-built');
 
-    // Auto-check for updates after app renders
+// Auto-check for updates after app renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      StartupLog.mark('first-frame-rendered');
       _checkForUpdates();
     });
   }
@@ -337,6 +357,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    StartupLog.mark('mainShell-build');
     final desktop = isDesktopPlatform;
     return PopScope(
       canPop: _tabHistory.length <= 1,
