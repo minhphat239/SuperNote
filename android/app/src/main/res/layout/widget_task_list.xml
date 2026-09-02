@@ -40,12 +40,13 @@
     </LinearLayout>
 
     <!-- Task List (up to 5 items) -->
-    <LinearLayout
+    <ListView
         android:id="@+id/widget_task_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="vertical" />
+        android:divider="@android:color/transparent"
+        android:dividerHeight="4dp" />
 
     <!-- Empty State -->
     <TextView

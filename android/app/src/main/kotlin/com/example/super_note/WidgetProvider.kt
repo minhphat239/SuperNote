@@ -53,8 +53,6 @@ class WidgetProvider : AppWidgetProvider() {
             // Parse tasks and populate list
             try {
                 val tasksArray = org.json.JSONArray(todayTasks)
-                val taskListView = views.getViewLayout(R.id.widget_task_list) ?: 
-                    android.widget.LinearLayout(context)
 
                 if (tasksArray.length() == 0) {
                     views.setViewVisibility(R.id.widget_empty_text, android.view.View.VISIBLE)
