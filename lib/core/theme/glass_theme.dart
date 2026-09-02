@@ -22,7 +22,18 @@ class GlassTheme {
   // Accent
   final Color accent;
   final Color accentLight;
+  final Color secondary;
   final List<Color> accentGradient;
+
+  // Neon orbs (background glow effects)
+  final List<Color> orbColors;
+  final double orbOpacity;
+
+  // Glass border override
+  final Color glassBorderColor;
+
+  // Text/icon color used on accent surfaces (buttons, gradient bubbles)
+  final Color onAccent;
 
   const GlassTheme({
     required this.id,
@@ -38,64 +49,82 @@ class GlassTheme {
     required this.borderEnd,
     required this.accent,
     required this.accentLight,
+    required this.secondary,
     required this.accentGradient,
+    required this.orbColors,
+    this.orbOpacity = 0.25,
+    this.glassBorderColor = const Color(0x1AFFFFFF),
+    this.onAccent = Colors.white,
   });
 
-  // ===== CYBERPUNK CYAN =====
+  // ===== 1. NEON CYBERPUNK (Default) =====
   static const cyberpunk = GlassTheme(
     id: 'cyberpunk',
     name: 'Cyberpunk',
-    emoji: '\u{1F30A}',
-    background: Color(0xFF0B0F17),
+    emoji: '\u{26A1}',
+    background: Color(0xFF0B0E14),
     surface: Color(0xFF111827),
     surfaceLight: Color(0xFF1E293B),
     card: Color(0xFF111827),
-    glassTint: Color(0xFF6366F1),
-    glassOpacity: 0.08,
-    borderStart: Color(0xFF6366F1),
-    borderEnd: Color(0xFFEC4899),
-    accent: Color(0xFF6366F1),
-    accentLight: Color(0xFF818CF8),
-    accentGradient: [Color(0xFF6366F1), Color(0xFFEC4899)],
+    glassTint: Color(0xFF00F5FF),
+    glassOpacity: 0.06,
+    borderStart: Color(0xFF00F5FF),
+    borderEnd: Color(0xFFFF007F),
+    accent: Color(0xFF00F5FF),
+    accentLight: Color(0xFF67F5FF),
+    secondary: Color(0xFFFF007F),
+    accentGradient: [Color(0xFF00F5FF), Color(0xFFFF007F)],
+    orbColors: [Color(0xFF00F5FF), Color(0xFFFF007F)],
+    orbOpacity: 0.20,
+    glassBorderColor: Color(0x1A00F5FF),
   );
 
-  // ===== OBSIDIAN GOLD =====
-  static const gold = GlassTheme(
-    id: 'gold',
-    name: 'B\u1EA3n Pro',
-    emoji: '\u{1F451}',
-    background: Color(0xFF0B0F17),
-    surface: Color(0xFF141420),
-    surfaceLight: Color(0xFF1E1E30),
-    card: Color(0xFF141420),
-    glassTint: Color(0xFFF59E0B),
-    glassOpacity: 0.10,
-    borderStart: Color(0xFFF59E0B),
-    borderEnd: Color(0xFFD97706),
-    accent: Color(0xFFF59E0B),
-    accentLight: Color(0xFFFBBF24),
-    accentGradient: [Color(0xFFF59E0B), Color(0xFFD97706)],
+  // ===== 2. MATRIX HACKER GREEN =====
+  static const matrix = GlassTheme(
+    id: 'matrix',
+    name: 'Matrix',
+    emoji: '\u{1F4BB}',
+    background: Color(0xFF000000),
+    surface: Color(0xFF0A0F0A),
+    surfaceLight: Color(0xFF112211),
+    card: Color(0xFF0A0F0A),
+    glassTint: Color(0xFF00FF66),
+    glassOpacity: 0.05,
+    borderStart: Color(0xFF00FF66),
+    borderEnd: Color(0xFF003B00),
+    accent: Color(0xFF00FF66),
+    accentLight: Color(0xFF66FF99),
+    secondary: Color(0xFF00CC52),
+    accentGradient: [Color(0xFF00FF66), Color(0xFF00CC52)],
+    orbColors: [Color(0xFF00FF66), Color(0xFF003B00)],
+    orbOpacity: 0.18,
+    glassBorderColor: Color(0x1A00FF66),
+    onAccent: Color(0xFF1A1A1A),
   );
 
-  // ===== MINT SUNSET =====
-  static const mint = GlassTheme(
-    id: 'mint',
-    name: 'Mint D\uECBCh M\u1EAFt',
-    emoji: '\u{1F343}',
-    background: Color(0xFF0B0F17),
-    surface: Color(0xFF0F1A20),
-    surfaceLight: Color(0xFF162A30),
-    card: Color(0xFF0F1A20),
-    glassTint: Color(0xFF2DD4BF),
-    glassOpacity: 0.07,
-    borderStart: Color(0xFF2DD4BF),
-    borderEnd: Color(0xFF34D399),
-    accent: Color(0xFF2DD4BF),
-    accentLight: Color(0xFF5EEAD4),
-    accentGradient: [Color(0xFF2DD4BF), Color(0xFF34D399)],
+  // ===== 3. OUTRUN SUNSET VAPORWAVE =====
+  static const outrun = GlassTheme(
+    id: 'outrun',
+    name: 'Outrun',
+    emoji: '\u{1F305}',
+    background: Color(0xFF120826),
+    surface: Color(0xFF1A0E30),
+    surfaceLight: Color(0xFF261845),
+    card: Color(0xFF1A0E30),
+    glassTint: Color(0xFFFF5E00),
+    glassOpacity: 0.06,
+    borderStart: Color(0xFFFF5E00),
+    borderEnd: Color(0xFF8A2BE2),
+    accent: Color(0xFFFF5E00),
+    accentLight: Color(0xFFFF8C42),
+    secondary: Color(0xFF8A2BE2),
+    accentGradient: [Color(0xFFFF5E00), Color(0xFF8A2BE2)],
+    orbColors: [Color(0xFFFF5E00), Color(0xFF8A2BE2)],
+    orbOpacity: 0.22,
+    glassBorderColor: Color(0x1AFF5E00),
   );
 
-  static const all = [cyberpunk, gold, mint];
+  static const all = [cyberpunk, matrix, outrun];
 
   static GlassTheme getById(String id) {
     return all.firstWhere(

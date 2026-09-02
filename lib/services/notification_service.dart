@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 import '../models/task.dart';
@@ -36,7 +36,7 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_notification');
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -81,12 +81,24 @@ class NotificationService {
   }
 
   Future<void> _requestPermissions() async {
-    final androidImpl = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.requestNotificationsPermission();
-    await androidImpl?.requestExactAlarmsPermission();
+    try {
+      final androidImpl = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (androidImpl != null) {
+        final granted = await androidImpl.requestNotificationsPermission() ?? false;
+        if (!granted) {
+          developer.log('Notification permission DENIED by user', name: 'NotificationService');
+        }
+        final exactGranted = await androidImpl.requestExactAlarmsPermission() ?? false;
+        if (!exactGranted) {
+          developer.log('Exact alarm permission DENIED by user', name: 'NotificationService');
+        }
+      }
 
-    final iosImpl = _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-    await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
+      final iosImpl = _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      await iosImpl?.requestPermissions(alert: true, badge: true, sound: true);
+    } catch (e) {
+      developer.log('Permission request failed: $e', name: 'NotificationService');
+    }
   }
 
   void _onNotificationResponse(NotificationResponse response) {
@@ -111,18 +123,26 @@ class NotificationService {
     if (_isLinux) return;
     if (!_initialized) await init();
     if (!_initialized) return;
+
     final deadline = task.deadline;
     if (deadline == null) return;
 
     final now = DateTime.now();
-    if (deadline.isBefore(now)) return;
+    // Don't schedule notifications for past tasks
+    if (deadline.isBefore(now)) {
+      developer.log('Task ${task.title} deadline is in the past, skipping notification', name: 'NotificationService');
+      return;
+    }
+
+    // Convert to TZDateTime using LOCAL timezone — CRITICAL for exact alarms
+    final tzDeadline = tz.TZDateTime.from(deadline, tz.local);
 
     // Main notification at deadline
     await _scheduleNotification(
       id: task.id.hashCode,
       title: task.title,
       body: _getNotificationBody(task),
-      scheduledDate: tz.TZDateTime.from(deadline, tz.local),
+      scheduledDate: tzDeadline,
       payload: '${task.id}:tap',
     );
 
@@ -132,8 +152,8 @@ class NotificationService {
       if (preTime.isAfter(now)) {
         await _scheduleNotification(
           id: task.id.hashCode + 10000,
-          title: '⏰ Reminder: ${task.title}',
-          body: 'Due in ${_formatDuration(task.preReminderOffset!)}',
+          title: '⏰ Sắp đến giờ: ${task.title}',
+          body: 'Còn ${_formatDuration(task.preReminderOffset!)} nữa',
           scheduledDate: tz.TZDateTime.from(preTime, tz.local),
           payload: '${task.id}:tap',
         );
@@ -204,6 +224,7 @@ class NotificationService {
         payload: payload,
       );
     } catch (e) {
+      developer.log('Exact alarm failed for "$title" (id=$id): $e', name: 'NotificationService');
       // Exact alarms may be denied on Android. Fall back to an inexact alarm.
       try {
         await _notifications.zonedSchedule(
@@ -216,8 +237,9 @@ class NotificationService {
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           payload: payload,
         );
+        developer.log('Fallback inexact alarm scheduled for "$title"', name: 'NotificationService');
       } catch (fallbackError) {
-        developer.log('Notification scheduling failed', error: fallbackError, name: 'NotificationService');
+        developer.log('INEXACT alarm also failed for "$title" (id=$id): $fallbackError', name: 'NotificationService');
       }
     }
   }
@@ -307,8 +329,16 @@ class NotificationService {
   }
 
   Future<tz.TZDateTime?> _shiftFromQuietHours(tz.TZDateTime dt) async {
-    await getQuietHours();
-    final shifted = dt.add(const Duration(hours: 1));
+    final (start, end) = await getQuietHours();
+    // Calculate quiet hours duration properly
+    int quietDurationHours;
+    if (start < end) {
+      quietDurationHours = end - start;
+    } else {
+      quietDurationHours = (24 - start) + end;
+    }
+    // Shift past the entire quiet window + 1 hour buffer
+    final shifted = dt.add(Duration(hours: quietDurationHours + 1));
     return shifted;
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
@@ -9,15 +10,20 @@ import 'notification_service.dart';
 import 'feedback_service.dart';
 import 'firestore_repository.dart';
 import 'ai_parser_service.dart';
+import 'home_widget_service.dart';
 
 class TaskService {
   static const String _prefix = 'tasks_';
   final AuthService? _authService;
   List<Task> _tasks = [];
+  final _taskStreamController = StreamController<List<Task>>.broadcast();
+
+  Stream<List<Task>> get taskStream => _taskStreamController.stream;
   final NotificationService _notificationService = NotificationService();
   final FeedbackService _feedback = FeedbackService();
   final FirestoreRepository _firestore = FirestoreRepository();
   final AiParserService _aiParser = AiParserService();
+  final HomeWidgetService _homeWidgetService = HomeWidgetService();
   String? _currentUserId;
 
   TaskService({AuthService? authService}) : _authService = authService;
@@ -60,6 +66,12 @@ class TaskService {
       await _aiParser.init();
     } catch (e) {
       developer.log('AI Parser init failed', error: e, name: 'TaskService');
+    }
+    try {
+      await _homeWidgetService.init();
+      await _homeWidgetService.updateWidgets(_tasks);
+    } catch (e) {
+      developer.log('HomeWidget init failed', error: e, name: 'TaskService');
     }
   }
 
@@ -113,6 +125,9 @@ class TaskService {
     final data = _tasks.map((e) => e.toMap()).toList();
     await prefs.setString(_tasksKey, jsonEncode(data));
 
+    // Broadcast to all listeners
+    _taskStreamController.add(List.unmodifiable(_tasks));
+
     // Sync to cloud if authenticated
     try {
       if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
@@ -120,6 +135,13 @@ class TaskService {
       }
     } catch (e) {
       developer.log('Cloud sync failed', error: e, name: 'TaskService');
+    }
+
+    // Update home screen widgets
+    try {
+      await _homeWidgetService.updateWidgets(_tasks);
+    } catch (e) {
+      developer.log('Widget sync failed', error: e, name: 'TaskService');
     }
   }
 
@@ -388,6 +410,7 @@ class TaskService {
     DateTime? repeatEndDate,
     int? preReminderOffset,
     TaskStatus? status,
+    List<String>? attachments,
   }) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index != -1) {
@@ -404,6 +427,7 @@ class TaskService {
         repeatEndDate: repeatEndDate,
         preReminderOffset: preReminderOffset,
         status: status,
+        attachments: attachments,
       );
       _tasks[index] = updated;
       await _saveTasks();

@@ -16,7 +16,7 @@ class ChatMessage {
   final DateTime timestamp;
   final bool isChecklist;
   final List<ChecklistItem>? checklistItems;
-  final TaskSuggestion? taskSuggestion;
+  final List<TaskSuggestion>? taskSuggestions;
 
   ChatMessage({
     required this.text,
@@ -24,8 +24,11 @@ class ChatMessage {
     DateTime? timestamp,
     this.isChecklist = false,
     this.checklistItems,
-    this.taskSuggestion,
+    this.taskSuggestions,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  bool get hasTaskSuggestions =>
+      taskSuggestions != null && taskSuggestions!.isNotEmpty;
 }
 
 class ChecklistItem {
@@ -76,6 +79,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
+  final Set<String> _addedSuggestionKeys = {};
   bool _isLoading = false;
   bool _isTyping = false;
 
@@ -190,16 +194,27 @@ class _AiChatPanelState extends State<AiChatPanel> {
         'một ứng dụng quản lý task cho sinh viên Việt Nam. '
         'Hôm nay là $dateStr, giờ hiện tại là $timeStr. '
         'Trả lời ngắn gọn, thân thiện bằng tiếng Việt. '
+        'Người dùng có thể yêu cầu tạo MỘT hoặc NHIỀU task trong một câu. '
         'Nếu người dùng yêu cầu tạo task hoặc lên lịch, '
         'bạn PHẢI trả về đúng 2 phần, phân tách bằng dòng "---":\n'
-        'Phần 1: JSON task với format: {"task":{"title":"...","date":"YYYY-MM-DD","time":"HH:mm","category":"class|exam|assignment|personal","reminder_minutes":0}}\n'
-        'Phần 2: Tin nhắn giải thích bằng tiếng Việt\n'
-        'Ví dụ:\n'
-        '{"task":{"title":"Đá bóng","date":"2026-09-11","time":"18:00","category":"personal","reminder_minutes":60}}\n'
+        'Phần 1: JSON task với format {"tasks":[{...},{...}]}: mỗi phần tử có '
+        '{"title":"...","date":"YYYY-MM-DD","time":"HH:mm","category":"class|exam|assignment|personal","reminder_minutes":0}\n'
+        'Phần 2: Tin nhắn giải thích bằng tiếng Việt.\n\n'
+        'Ví dụ 1 task:\n'
+        '{"tasks":[{"title":"Đá bóng","date":"2026-09-11","time":"18:00","category":"personal","reminder_minutes":60}]}\n'
         '---\n'
-        'Mình đã lên lịch trận đấu bóng vào thứ 6 ngày 11/09/2026 lúc 18:00. Nhắc trước 1 giờ.\n'
+        'Mình đã lên lịch trận đấu bóng vào thứ 6 ngày 11/09/2026 lúc 18:00. Nhắc trước 1 giờ.\n\n'
+        'Ví dụ nhiều task:\n'
+        '{"tasks":['
+        '{"title":"Họp team","date":"2026-09-03","time":"09:00","category":"personal","reminder_minutes":30},'
+        '{"title":"Nộp báo cáo","date":"2026-09-05","time":"17:00","category":"assignment","reminder_minutes":120},'
+        '{"title":"Mua quà mẹ","date":"2026-09-02","time":"20:00","category":"personal","reminder_minutes":null}'
+        ']}\n'
+        '---\n'
+        'Mình đã lên lịch 3 việc cho bạn: họp team sáng mai 9h, nộp báo cáo thứ 6 lúc 17h, và mua quà cho mẹ tối nay.\n\n'
         'KHÔNG BAO GIỜ dùng năm 2024 hoặc 2025. Luôn dùng năm ${now.year}. '
-        'Nếu KHÔNG phải yêu cầu tạo task, chỉ trả lời bằng tiếng Việt bình thường, KHÔNG có JSON.';
+        'Nếu KHÔNG phải yêu cầu tạo task, chỉ trả lời bằng tiếng Việt bình thường, KHÔNG có JSON. '
+        'Output LUÔN là {"tasks":[...]} chứ KHÔNG phải {"task":{...}}.';
   }
 
   ChatMessage _parseResponse(String response) {
@@ -214,52 +229,77 @@ class _AiChatPanelState extends State<AiChatPanel> {
 
         try {
           final data = jsonDecode(jsonPart) as Map<String, dynamic>;
-          if (data.containsKey('task')) {
-            final task = data['task'] as Map<String, dynamic>;
-            final title = task['title'] as String? ?? '';
+          // Support both new {"tasks":[...]} and legacy {"task":{...}}
+          List<dynamic> rawTasks;
+          if (data['tasks'] is List) {
+            rawTasks = data['tasks'] as List;
+          } else if (data['task'] is Map) {
+            rawTasks = [data['task'] as Map<String, dynamic>];
+          } else {
+            rawTasks = [];
+          }
 
-            DateTime? dueDate;
-            if (task['date'] != null) {
-              dueDate = DateTime.tryParse(task['date'] as String);
-            }
+          if (rawTasks.isNotEmpty) {
+            final suggestions = <TaskSuggestion>[];
+            for (final raw in rawTasks) {
+              if (raw is! Map) continue;
+              final task = raw;
+              final title = (task['title'] as String?)?.trim() ?? '';
+              if (title.isEmpty) continue;
 
-            DateTime? dueTime;
-            if (task['time'] != null && dueDate != null) {
-              final timeParts = (task['time'] as String).split(':');
-              if (timeParts.length == 2) {
-                dueTime = DateTime(
-                  dueDate.year, dueDate.month, dueDate.day,
-                  int.parse(timeParts[0]),
-                  int.parse(timeParts[1]),
-                );
+              DateTime? dueDate;
+              if (task['date'] != null) {
+                dueDate = DateTime.tryParse(task['date'] as String);
               }
-            }
 
-            TaskCategory category = TaskCategory.personal;
-            if (task['category'] != null) {
-              final catStr = (task['category'] as String).toLowerCase();
-              if (catStr == 'class') category = TaskCategory.class_;
-              else if (catStr == 'exam') category = TaskCategory.exam;
-              else if (catStr == 'assignment') category = TaskCategory.assignment;
-              else category = TaskCategory.personal;
-            }
+              DateTime? dueTime;
+              if (task['time'] != null && dueDate != null) {
+                final timeParts = (task['time'] as String).split(':');
+                if (timeParts.length == 2) {
+                  dueTime = DateTime(
+                    dueDate.year, dueDate.month, dueDate.day,
+                    int.parse(timeParts[0]),
+                    int.parse(timeParts[1]),
+                  );
+                }
+              }
 
-            int? reminderMinutes;
-            if (task['reminder_minutes'] != null) {
-              reminderMinutes = task['reminder_minutes'] as int;
-            }
+              TaskCategory category = TaskCategory.personal;
+              if (task['category'] != null) {
+                final catStr = (task['category'] as String).toLowerCase();
+                if (catStr == 'class') {
+                  category = TaskCategory.class_;
+                } else if (catStr == 'exam') {
+                  category = TaskCategory.exam;
+                } else if (catStr == 'assignment') {
+                  category = TaskCategory.assignment;
+                }
+              }
 
-            return ChatMessage(
-              text: messagePart.isNotEmpty ? messagePart : 'Đã tạo task: $title',
-              isUser: false,
-              taskSuggestion: TaskSuggestion(
+              int? reminderMinutes;
+              if (task['reminder_minutes'] != null) {
+                reminderMinutes = task['reminder_minutes'] as int;
+              }
+
+              suggestions.add(TaskSuggestion(
                 title: title,
                 dueDate: dueDate,
                 dueTime: dueTime,
                 category: category,
                 preReminderOffset: reminderMinutes,
-              ),
-            );
+              ));
+            }
+
+            if (suggestions.isNotEmpty) {
+              final defaultText = suggestions.length == 1
+                  ? 'Đã tạo task: ${suggestions.first.title}'
+                  : 'Mình đã lên lịch ${suggestions.length} việc cho bạn.';
+              return ChatMessage(
+                text: messagePart.isNotEmpty ? messagePart : defaultText,
+                isUser: false,
+                taskSuggestions: suggestions,
+              );
+            }
           }
         } catch (_) {}
       }
@@ -288,12 +328,10 @@ class _AiChatPanelState extends State<AiChatPanel> {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      height: screenHeight * 0.85 - bottomPadding,
       constraints: BoxConstraints(
-        maxHeight: screenHeight - bottomPadding - MediaQuery.of(context).padding.top - 32,
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
@@ -327,10 +365,10 @@ class _AiChatPanelState extends State<AiChatPanel> {
                     gradient: AppGradient.primary,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.auto_awesome_rounded,
                     size: 16,
-                    color: Colors.white,
+                    color: AppColors.onAccent,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -401,8 +439,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
 
           // ===== INPUT BAR =====
           Container(
-            padding: EdgeInsets.fromLTRB(
-                16, 8, 16, 8 + bottomPadding),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + bottomPadding),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: AppColors.border, width: 0.5),
@@ -448,12 +485,13 @@ class _AiChatPanelState extends State<AiChatPanel> {
 
   Widget _buildMessage(ChatMessage msg) {
     if (msg.isUser) return _buildUserMessage(msg);
-    if (msg.taskSuggestion != null) return _buildTaskSuggestionMessage(msg);
+    if (msg.hasTaskSuggestions) return _buildTaskSuggestionMessage(msg);
     if (msg.isChecklist) return _buildChecklistMessage(msg);
     return _buildAiMessage(msg);
   }
 
-  void _addTaskFromSuggestion(TaskSuggestion suggestion) async {
+  void _addSingleTaskFromSuggestion(ChatMessage msg, int index) async {
+    final suggestion = msg.taskSuggestions![index];
     await widget.taskService.addTask(
       title: suggestion.title,
       dueDate: suggestion.dueDate,
@@ -463,17 +501,14 @@ class _AiChatPanelState extends State<AiChatPanel> {
     );
     if (!mounted) return;
     setState(() {
-      _messages.add(ChatMessage(
-        text: 'Đã thêm "${suggestion.title}" vào lịch!',
-        isUser: false,
-      ));
+      _addedSuggestionKeys.add('${msg.timestamp.millisecondsSinceEpoch}_$index');
     });
     _scrollToBottom();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
             const SizedBox(width: 8),
             Expanded(child: Text('Đã thêm "${suggestion.title}" vào lịch')),
           ],
@@ -485,20 +520,48 @@ class _AiChatPanelState extends State<AiChatPanel> {
     );
   }
 
+  void _addAllTasksFromSuggestions(ChatMessage msg) async {
+    final suggestions = msg.taskSuggestions!;
+    for (final suggestion in suggestions) {
+      await widget.taskService.addTask(
+        title: suggestion.title,
+        dueDate: suggestion.dueDate,
+        dueTime: suggestion.dueTime,
+        category: suggestion.category,
+        preReminderOffset: suggestion.preReminderOffset,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      final ts = msg.timestamp.millisecondsSinceEpoch;
+      for (int i = 0; i < suggestions.length; i++) {
+        _addedSuggestionKeys.add('${ts}_$i');
+      }
+      _messages.add(ChatMessage(
+        text: 'Đã thêm tất cả ${suggestions.length} task vào lịch!',
+        isUser: false,
+      ));
+    });
+    _scrollToBottom();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Đã thêm ${suggestions.length} task vào lịch')),
+          ],
+        ),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+      ),
+    );
+  }
+
   Widget _buildTaskSuggestionMessage(ChatMessage msg) {
-    final suggestion = msg.taskSuggestion!;
-    final dateStr = suggestion.dueDate != null
-        ? DateFormat('EEEE, dd/MM/yyyy', 'vi').format(suggestion.dueDate!)
-        : 'Chưa rõ ngày';
-    final timeStr = suggestion.dueTime != null
-        ? DateFormat('HH:mm').format(suggestion.dueTime!)
-        : '';
-    final catLabel = {
-      TaskCategory.class_: 'Lớp học',
-      TaskCategory.exam: 'Kỳ thi',
-      TaskCategory.assignment: 'Bài tập',
-      TaskCategory.personal: 'Cá nhân',
-    }[suggestion.category] ?? 'Cá nhân';
+    final suggestions = msg.taskSuggestions!;
+    final ts = msg.timestamp.millisecondsSinceEpoch;
 
     return SlideIn(
       child: Align(
@@ -557,83 +620,70 @@ class _AiChatPanelState extends State<AiChatPanel> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Task info card
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.background.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          border: Border.all(color: AppColors.border, width: 0.5),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.task_alt_rounded, size: 14, color: AppColors.primary),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    suggestion.title,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.calendar_today_rounded, size: 11, color: AppColors.textMuted.withValues(alpha: 0.6)),
-                                const SizedBox(width: 4),
-                                Text(dateStr, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.7))),
-                                if (timeStr.isNotEmpty) ...[
-                                  const SizedBox(width: 8),
-                                  Icon(Icons.access_time_rounded, size: 11, color: AppColors.textMuted.withValues(alpha: 0.6)),
-                                  const SizedBox(width: 4),
-                                  Text(timeStr, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.7))),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.label_rounded, size: 11, color: suggestion.category.color.withValues(alpha: 0.6)),
-                                const SizedBox(width: 4),
-                                Text(catLabel, style: TextStyle(fontSize: 11, color: suggestion.category.color.withValues(alpha: 0.8))),
-                                if (suggestion.preReminderOffset != null && suggestion.preReminderOffset! > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Icon(Icons.notifications_active_rounded, size: 11, color: AppColors.orange.withValues(alpha: 0.6)),
-                                  const SizedBox(width: 4),
-                                  Text('Nhắc trước ${suggestion.preReminderOffset} phút',
-                                      style: TextStyle(fontSize: 11, color: AppColors.orange.withValues(alpha: 0.8))),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Add to calendar button
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: () => _addTaskFromSuggestion(suggestion),
-                              icon: const Icon(Icons.add_task_rounded, size: 16),
-                              label: const Text('Thêm vào lịch', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+
+                      // Multi-task summary header
+                      if (suggestions.length > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.task_alt_rounded, size: 13, color: AppColors.primary),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Đã tách thành ${suggestions.length} task:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary.withValues(alpha: 0.9),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
+                        ),
+
+                      // Per-task cards with individual "Thêm vào lịch" buttons
+                      for (int i = 0; i < suggestions.length; i++) ...[
+                        _buildSuggestionCard(
+                          msg: msg,
+                          suggestion: suggestions[i],
+                          index: i,
+                          total: suggestions.length,
+                          ts: ts,
+                        ),
+                      ],
+
+                      const SizedBox(height: 8),
+
+                      // Footer: "Add all" + timestamp
+                      Row(
+                        children: [
+                          if (suggestions.length > 1)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _addAllTasksFromSuggestions(msg),
+                                icon: const Icon(Icons.add_task_rounded, size: 14),
+                                label: Text(
+                                  'Thêm tất cả ${suggestions.length} task',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  side: BorderSide(
+                                    color: AppColors.primary.withValues(alpha: 0.4),
+                                    width: 1,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 9),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            const Spacer(),
                           const SizedBox(width: 8),
                           Text(
                             DateFormat('HH:mm').format(msg.timestamp),
@@ -647,6 +697,149 @@ class _AiChatPanelState extends State<AiChatPanel> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionCard({
+    required ChatMessage msg,
+    required TaskSuggestion suggestion,
+    required int index,
+    required int total,
+    required int ts,
+  }) {
+    final addedKey = '${ts}_$index';
+    final isAdded = _addedSuggestionKeys.contains(addedKey);
+
+    final dateStr = suggestion.dueDate != null
+        ? DateFormat('EEEE, dd/MM/yyyy', 'vi').format(suggestion.dueDate!)
+        : 'Chưa rõ ngày';
+    final timeStr = suggestion.dueTime != null
+        ? DateFormat('HH:mm').format(suggestion.dueTime!)
+        : '';
+    final catLabel = {
+      TaskCategory.class_: 'Lớp học',
+      TaskCategory.exam: 'Kỳ thi',
+      TaskCategory.assignment: 'Bài tập',
+      TaskCategory.personal: 'Cá nhân',
+    }[suggestion.category] ?? 'Cá nhân';
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: index < total - 1 ? 10 : 0),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.background.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(
+            color: isAdded
+                ? AppColors.success.withValues(alpha: 0.4)
+                : AppColors.border,
+            width: isAdded ? 1 : 0.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: index badge + title + added checkmark
+            Row(
+              children: [
+                if (total > 1) ...[
+                  Container(
+                    width: 20, height: 20,
+                    decoration: BoxDecoration(
+                      color: suggestion.category.color.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: suggestion.category.color.withValues(alpha: 0.4),
+                        width: 0.5,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: suggestion.category.color,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Icon(Icons.task_alt_rounded, size: 14, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    suggestion.title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isAdded)
+                  Icon(Icons.check_circle_rounded,
+                      size: 16, color: AppColors.success),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Date + time
+            Row(
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 11, color: AppColors.textMuted.withValues(alpha: 0.6)),
+                const SizedBox(width: 4),
+                Text(dateStr, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.7))),
+                if (timeStr.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.access_time_rounded, size: 11, color: AppColors.textMuted.withValues(alpha: 0.6)),
+                  const SizedBox(width: 4),
+                  Text(timeStr, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.7))),
+                ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Category + reminder
+            Row(
+              children: [
+                Icon(Icons.label_rounded, size: 11, color: suggestion.category.color.withValues(alpha: 0.6)),
+                const SizedBox(width: 4),
+                Text(catLabel, style: TextStyle(fontSize: 11, color: suggestion.category.color.withValues(alpha: 0.8))),
+                if (suggestion.preReminderOffset != null && suggestion.preReminderOffset! > 0) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.notifications_active_rounded, size: 11, color: AppColors.orange.withValues(alpha: 0.6)),
+                  const SizedBox(width: 4),
+                  Text('Nhắc trước ${suggestion.preReminderOffset} phút',
+                      style: TextStyle(fontSize: 11, color: AppColors.orange.withValues(alpha: 0.8))),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            // "Thêm lịch" button (per-task)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: isAdded ? null : () => _addSingleTaskFromSuggestion(msg, index),
+                icon: Icon(
+                  isAdded ? Icons.check_rounded : Icons.add_task_rounded,
+                  size: 14,
+                ),
+                label: Text(
+                  isAdded ? 'Đã thêm' : 'Thêm lịch',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: isAdded ? AppColors.success : AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -680,9 +873,9 @@ class _AiChatPanelState extends State<AiChatPanel> {
           ),
           child: Text(
             msg.text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
-              color: Colors.white,
+              color: AppColors.onAccent,
               height: 1.4,
             ),
           ),
@@ -1081,10 +1274,10 @@ class _AiChatPanelState extends State<AiChatPanel> {
                           color: AppColors.textMuted,
                         ),
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.send_rounded,
                         size: 14,
-                        color: Colors.white,
+                        color: AppColors.onAccent,
                       ),
               ),
             ),

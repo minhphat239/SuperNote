@@ -6,7 +6,7 @@ import 'auth_service.dart';
 class StorageService {
   static const String _prefix = 'notes_';
   final AuthService? _authService;
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
   String? _currentUserId;
 
   StorageService({AuthService? authService}) : _authService = authService;
@@ -24,7 +24,8 @@ class StorageService {
   }
 
   Future<List<Note>> getAllNotes() async {
-    final jsonString = _prefs.getString(_notesKey);
+    if (_prefs == null) return [];
+    final jsonString = _prefs!.getString(_notesKey);
     if (jsonString == null) return [];
 
     final List<dynamic> jsonList = jsonDecode(jsonString);
@@ -49,7 +50,8 @@ class StorageService {
   }
 
   Future<List<Note>> _getAllIncludingDeleted() async {
-    final jsonString = _prefs.getString(_notesKey);
+    if (_prefs == null) return [];
+    final jsonString = _prefs!.getString(_notesKey);
     if (jsonString == null) return [];
 
     final List<dynamic> jsonList = jsonDecode(jsonString);
@@ -57,8 +59,9 @@ class StorageService {
   }
 
   Future<void> _saveAll(List<Note> notes) async {
+    if (_prefs == null) return;
     final jsonList = notes.map((e) => e.toMap()).toList();
-    await _prefs.setString(_notesKey, jsonEncode(jsonList));
+    await _prefs!.setString(_notesKey, jsonEncode(jsonList));
   }
 
   Future<void> insertNote(Note note) async {

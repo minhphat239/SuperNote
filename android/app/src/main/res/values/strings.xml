@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_task_list_desc">Danh sách task hôm nay với hiệu ứng Glassmorphism</string>
+    <string name="widget_quick_task_desc">Nút thêm task nhanh với hiệu ứng Neon Glow</string>
+    <string name="widget_progress_desc">Đồng hồ Sci-Fi và thanh tiến độ Neon</string>
+</resources>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    android:background="@drawable/widget_glass_bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Glowing Add Button -->
+        <FrameLayout
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/widget_glow_button">
+
+            <ImageView
+                android:id="@+id/quick_add_icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:src="@drawable/widget_ic_add" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Thêm task"
+            android:textColor="#B0FFFFFF"
+            android:textSize="10sp"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/quick_today_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 việc hôm nay"
+            android:textColor="#60FFFFFF"
+            android:textSize="9sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+</FrameLayout>

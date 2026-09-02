@@ -131,15 +131,15 @@ class TaskCard extends StatelessWidget {
                   },
                   itemBuilder: (_) => [
                     if (!isDone)
-                      const PopupMenuItem(
-                          value: 'snooze',
-                          child: Row(children: [
+                    PopupMenuItem(
+                        value: 'snooze',
+                        child: Row(children: [
                             Icon(Icons.snooze_rounded,
                                 size: 18, color: AppColors.orange),
                             SizedBox(width: 10),
                             Text('Snooze'),
                           ])),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                         value: 'delete',
                         child: Row(children: [
                           Icon(Icons.delete_outline_rounded,

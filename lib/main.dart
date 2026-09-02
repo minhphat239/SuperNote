@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/app_localizations.dart';
+import 'services/language_service.dart';
 import 'services/storage_service.dart';
 import 'services/note_service.dart';
 import 'services/sync_service.dart';
@@ -18,6 +23,7 @@ import 'services/auto_update_service.dart';
 import 'services/feedback_service.dart';
 import 'services/firestore_repository.dart';
 import 'services/ai_parser_service.dart';
+import 'services/custom_background_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/task_screen.dart';
 import 'screens/calendar_screen.dart';
@@ -26,6 +32,8 @@ import 'screens/settings_screen.dart';
 import 'screens/update_check_dialog.dart';
 import 'shared/widgets/ai_chat_button.dart';
 import 'shared/widgets/ai_chat_panel.dart';
+import 'shared/widgets/custom_background_widget.dart';
+import 'shared/widgets/cyberpunk_background.dart';
 
 bool get isDesktopPlatform {
   if (kIsWeb) return false;
@@ -57,6 +65,11 @@ Future<void> _bootstrapDesktop() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize timezone data early — required for notification scheduling
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -68,10 +81,10 @@ void main() async {
     await _bootstrapDesktop();
   }
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Color(0xFF0E0F1A),
+    systemNavigationBarColor: AppColors.background,
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
@@ -90,6 +103,14 @@ void main() async {
   final themeService = ThemeService();
   await themeService.init();
 
+  CustomBackgroundService? customBackgroundService;
+  try {
+    customBackgroundService = CustomBackgroundService();
+    await customBackgroundService.init();
+  } catch (_) {
+    // CustomBackgroundService may not be available
+  }
+
   final updateService = AutoUpdateService();
 
   // ===== BACKEND SERVICES =====
@@ -107,6 +128,9 @@ void main() async {
     await AiParserService().init();
   } catch (_) {}
 
+  final languageService = LanguageService();
+  await languageService.init();
+
   // Listen to auth changes → reload per-user data
   authService.authStateChanges.listen((isLoggedIn) async {
     final userId = isLoggedIn ? authService.userId : null;
@@ -122,6 +146,8 @@ void main() async {
     geminiService: geminiService,
     themeService: themeService,
     updateService: updateService,
+    customBackgroundService: customBackgroundService,
+    languageService: languageService,
   ));
 }
 
@@ -133,6 +159,8 @@ class SuperNoteApp extends StatelessWidget {
   final GeminiService geminiService;
   final ThemeService themeService;
   final AutoUpdateService updateService;
+  final CustomBackgroundService? customBackgroundService;
+  final LanguageService languageService;
 
   const SuperNoteApp({
     super.key,
@@ -143,17 +171,30 @@ class SuperNoteApp extends StatelessWidget {
     required this.geminiService,
     required this.themeService,
     required this.updateService,
+    this.customBackgroundService,
+    required this.languageService,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: themeService,
+      listenable: Listenable.merge([themeService, languageService]),
       builder: (context, _) {
         return MaterialApp(
           title: 'SuperNote',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.dark,
+          locale: languageService.currentLocale,
+          supportedLocales: const [
+            Locale('vi'),
+            Locale('en'),
+          ],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
@@ -177,6 +218,8 @@ class SuperNoteApp extends StatelessWidget {
                   geminiService: geminiService,
                   themeService: themeService,
                   updateService: updateService,
+                  customBackgroundService: customBackgroundService,
+                  languageService: languageService,
                 );
               }
 
@@ -200,6 +243,8 @@ class MainShell extends StatefulWidget {
   final GeminiService geminiService;
   final ThemeService themeService;
   final AutoUpdateService updateService;
+  final CustomBackgroundService? customBackgroundService;
+  final LanguageService languageService;
 
   const MainShell({
     super.key,
@@ -210,6 +255,8 @@ class MainShell extends StatefulWidget {
     required this.geminiService,
     required this.themeService,
     required this.updateService,
+    this.customBackgroundService,
+    required this.languageService,
   });
 
   @override
@@ -221,17 +268,27 @@ class _MainShellState extends State<MainShell> {
   final List<int> _tabHistory = [0];
   late final List<Widget> _screens;
 
+  /// Clamp _currentIndex to a safe range to prevent IndexedStack out-of-bounds.
+  int get _safeIndex {
+    if (_screens.isEmpty) return 0;
+    if (_currentIndex < 0 || _currentIndex >= _screens.length) return 0;
+    return _currentIndex;
+  }
+
   @override
   void initState() {
     super.initState();
     _screens = [
-      TaskScreen(taskService: widget.taskService),
+      TaskScreen(taskService: widget.taskService, geminiService: widget.geminiService),
       CalendarScreen(taskService: widget.taskService),
       TimelineScreen(taskService: widget.taskService),
       SettingsScreen(
         authService: widget.authService,
         geminiService: widget.geminiService,
         themeService: widget.themeService,
+        taskService: widget.taskService,
+        customBackgroundService: widget.customBackgroundService,
+        languageService: widget.languageService,
       ),
     ];
 
@@ -264,24 +321,6 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  Widget _buildNeonOrb(double size, Color color, double alpha) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: alpha),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.4),
-            blurRadius: size * 0.6,
-            spreadRadius: size * 0.15,
-          ),
-        ],
-      ),
-    );
-  }
-
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     setState(() {
@@ -305,27 +344,24 @@ class _MainShellState extends State<MainShell> {
           });
         }
       },
-      child: Scaffold(
-      backgroundColor: const Color(0xFF0B0F17),
+      child: widget.customBackgroundService != null
+          ? CustomBackgroundWidget(
+              backgroundService: widget.customBackgroundService!,
+              child: CyberpunkBackground(
+                child: _buildScaffold(context, desktop),
+              ),
+            )
+          : CyberpunkBackground(
+              child: _buildScaffold(context, desktop),
+            ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, bool desktop) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // ===== NEON GLOW ORBS (behind all content for glassmorphism) =====
-          Positioned(
-            top: -80,
-            left: -80,
-            child: _buildNeonOrb(250, const Color(0xFF6366F1), 0.3),
-          ),
-          Positioned(
-            bottom: 120,
-            right: -80,
-            child: _buildNeonOrb(300, const Color(0xFFEC4899), 0.2),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.4,
-            left: MediaQuery.of(context).size.width * 0.25,
-            child: _buildNeonOrb(200, const Color(0xFFF59E0B), 0.15),
-          ),
-
           // ===== MAIN CONTENT =====
           Column(
             children: [
@@ -387,7 +423,17 @@ class _MainShellState extends State<MainShell> {
               Expanded(
                 child: SafeArea(
                   bottom: false,
-                  child: IndexedStack(index: _currentIndex, children: _screens),
+                  child: _screens.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Đang tải...',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        )
+                      : IndexedStack(
+                          index: _safeIndex,
+                          children: _screens,
+                        ),
                 ),
               ),
 
@@ -439,8 +485,8 @@ class _MainShellState extends State<MainShell> {
             ],
           ),
 
-          // ===== AI CHAT BUTTON (floating, mobile only, hidden on Settings) =====
-          if (!desktop && _currentIndex != 3)
+          // ===== AI CHAT BUTTON (floating, mobile only, hidden on Settings & Calendar) =====
+          if (!desktop && _currentIndex != 3 && _currentIndex != 1)
             Positioned(
               bottom: 80,
               right: 16,
@@ -450,7 +496,6 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
         ],
-      ),
       ),
     );
   }

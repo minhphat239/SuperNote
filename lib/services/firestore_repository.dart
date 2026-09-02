@@ -9,7 +9,7 @@ class FirestoreRepository {
   factory FirestoreRepository() => _instance;
   FirestoreRepository._internal();
 
-  late final FirebaseFirestore _db;
+  FirebaseFirestore? _db;
   bool _initialized = false;
   bool _isOnline = true;
 
@@ -21,7 +21,7 @@ class FirestoreRepository {
     try {
       _db = FirebaseFirestore.instance;
 
-      _db.snapshotsInSync().listen(
+      _db!.snapshotsInSync().listen(
         (_) => _isOnline = true,
         onError: (_) => _isOnline = false,
       );
@@ -41,14 +41,14 @@ class FirestoreRepository {
     if (!_isAuthenticated) {
       throw Exception('User not authenticated');
     }
-    return _db.collection('users').doc(_userId).collection('tasks');
+    return _db!.collection('users').doc(_userId).collection('tasks');
   }
 
   DocumentReference<Map<String, dynamic>> get _userDoc {
     if (!_isAuthenticated) {
       throw Exception('User not authenticated');
     }
-    return _db.collection('users').doc(_userId);
+    return _db!.collection('users').doc(_userId);
   }
 
   // ===== USER PROFILE =====
@@ -59,8 +59,9 @@ class FirestoreRepository {
     required String email,
     String? photoUrl,
   }) async {
+    if (_db == null) return;
     try {
-      await _db.collection('users').doc(uid).set({
+      await _db!.collection('users').doc(uid).set({
         'uid': uid,
         'displayName': displayName,
         'email': email,
@@ -220,9 +221,9 @@ class FirestoreRepository {
   // ===== SYNC HELPERS =====
 
   Future<void> syncLocalToCloud(List<Task> localTasks) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated || _db == null) return;
     try {
-      final batch = _db.batch();
+      final batch = _db!.batch();
       for (final task in localTasks) {
         final ref = _tasksCollection.doc(task.id);
         batch.set(ref, _taskToMap(task), SetOptions(merge: true));
@@ -236,10 +237,10 @@ class FirestoreRepository {
   }
 
   Future<void> deleteAllTasks() async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated || _db == null) return;
     try {
       final snapshot = await _tasksCollection.get();
-      final batch = _db.batch();
+      final batch = _db!.batch();
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
       }

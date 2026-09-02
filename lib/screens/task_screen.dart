@@ -1,42 +1,88 @@
-import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
+import '../core/utils/nlp_dual_stage.dart';
 import '../models/task.dart';
+import '../services/gemini_service.dart';
 import '../services/task_service.dart';
+import '../shared/widgets/nlp_input_bar.dart';
 import '../shared/widgets/task_card.dart';
 import '../shared/widgets/progress_widgets.dart';
 import 'task_detail_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class TaskScreen extends StatefulWidget {
   final TaskService taskService;
-  const TaskScreen({super.key, required this.taskService});
+  final GeminiService? geminiService;
+  const TaskScreen({super.key, required this.taskService, this.geminiService});
 
   @override
   State<TaskScreen> createState() => _TaskScreenState();
 }
 
 class _TaskScreenState extends State<TaskScreen> {
-  final TextEditingController _taskController = TextEditingController();
   TaskCategory? _selectedCategory;
   String _searchQuery = '';
   bool _showSearch = false;
   bool _showCompleted = false;
   DateTime _selectedDate = DateTime.now();
+  StreamSubscription<List<Task>>? _taskSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _taskSubscription = widget.taskService.taskStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
-    _taskController.dispose();
+    _taskSubscription?.cancel();
     super.dispose();
   }
 
-  void _submitTask() {
-    final title = _taskController.text.trim();
-    if (title.isEmpty) return;
+  void _submitNlpTask(List<DualStageResult> results) {
+    if (results.isEmpty) return;
+    for (final result in results) {
+      DateTime? dueDate;
+      DateTime? dueTime;
+      if (result.targetTime != null) {
+        dueDate = DateTime(result.targetTime!.year, result.targetTime!.month, result.targetTime!.day);
+        dueTime = DateTime(2000, 1, 1, result.targetTime!.hour, result.targetTime!.minute);
+      }
 
-    widget.taskService.addTask(title: title);
-    _taskController.clear();
-    FocusScope.of(context).unfocus();
+      final preReminder = result.preReminderOffset ??
+          (result.hasStage1 ? result.stage1OffsetMinutes : null);
+
+      widget.taskService.addTask(
+        title: result.title.isEmpty ? 'Untitled Task' : result.title,
+        description: result.description ?? '',
+        dueDate: dueDate,
+        dueTime: dueTime,
+        category: result.category,
+        preReminderOffset: preReminder,
+      );
+    }
+
+    if (results.length > 1) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('Đã thêm ${results.length} task mới',
+                style: const TextStyle(fontWeight: FontWeight.w500)),
+          ),
+        ]),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md)),
+        duration: const Duration(seconds: 3),
+      ));
+    }
     setState(() {});
   }
 
@@ -88,15 +134,15 @@ class _TaskScreenState extends State<TaskScreen> {
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.xl)),
         backgroundColor: AppColors.surface,
-        title: const Text('Xóa task'),
-        content: Text('Xóa "${task.title}"?'),
+        title: Text(AppLocalizations.of(context)!.deleteTaskTitle),
+        content: Text(AppLocalizations.of(context)!.deleteTaskConfirm(task.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
+              child: Text(AppLocalizations.of(context)!.cancel)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Xóa',
+              child: Text(AppLocalizations.of(context)!.delete,
                   style: TextStyle(color: AppColors.error))),
         ],
       ),
@@ -119,21 +165,21 @@ class _TaskScreenState extends State<TaskScreen> {
             margin: const EdgeInsets.only(top: 12),
             decoration: BoxDecoration(
                 color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-        const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Tạm hoãn:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+        Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('${AppLocalizations.of(context)!.snoozed}:',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
         ListTile(
             leading: Icon(Icons.timer_rounded, color: AppColors.primary),
             title: const Text('10 phút'),
             onTap: () => Navigator.pop(context, 10)),
         ListTile(
-            leading: const Icon(Icons.timer_rounded, color: AppColors.orange),
+            leading: Icon(Icons.timer_rounded, color: AppColors.orange),
             title: const Text('1 giờ'),
             onTap: () => Navigator.pop(context, 60)),
         ListTile(
-            leading: const Icon(Icons.calendar_today_rounded, color: AppColors.green),
-            title: const Text('Ngày mai'),
+            leading: Icon(Icons.calendar_today_rounded, color: AppColors.green),
+            title: Text(AppLocalizations.of(context)!.tomorrow),
             onTap: () => Navigator.pop(context, 1440)),
         const SizedBox(height: 8),
       ])),
@@ -164,7 +210,7 @@ class _TaskScreenState extends State<TaskScreen> {
       backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        top: false,
+        top: true,
         bottom: true,
         child: CustomScrollView(
           slivers: [
@@ -331,62 +377,14 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
-  // ===== QUICK TASK INPUT (Glass Blur) =====
+  // ===== QUICK TASK INPUT (NlpInputBar) =====
   Widget _buildQuickTaskInput() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.tune_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _taskController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Thêm nhanh task...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      fillColor: Colors.transparent,
-                      filled: false,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    onSubmitted: (_) => _submitTask(),
-                    textInputAction: TextInputAction.send,
-                  ),
-                ),
-                Material(
-                  color: AppColors.cyberBlueViolet,
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: IconButton(
-                    constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
-                    onPressed: _submitTask,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: NlpInputBar(
+        onSubmit: _submitNlpTask,
+        geminiService: widget.geminiService,
+        hintText: 'Thêm nhanh task (VD: Họp 2h chiều mai gấp)...',
       ),
     );
   }
@@ -399,8 +397,8 @@ class _TaskScreenState extends State<TaskScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildFilterPill(label: 'Tất cả', icon: Icons.all_inclusive_rounded,
-              color: AppColors.textSecondary, selected: _selectedCategory == null,
+          _buildFilterPill(label: AppLocalizations.of(context)!.filterAll, icon: Icons.all_inclusive_rounded,
+              color: AppColors.primary, selected: _selectedCategory == null,
               onTap: () => setState(() => _selectedCategory = null)),
           const SizedBox(width: 5),
           ...TaskCategory.values.map((cat) => Padding(
@@ -426,25 +424,35 @@ class _TaskScreenState extends State<TaskScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.cyberBlueViolet
+              ? color.withValues(alpha: 0.18)
               : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: selected
-                  ? AppColors.cyberBlueViolet
-                  : Colors.white.withValues(alpha: 0.15),
-              width: selected ? 1.5 : 1),
+            color: selected
+                ? color
+                : Colors.white.withValues(alpha: 0.1),
+            width: selected ? 1.5 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 12,
-                color: selected ? Colors.white : AppColors.textMuted.withValues(alpha: 0.5)),
+                color: selected ? color : AppColors.textMuted.withValues(alpha: 0.5)),
             const SizedBox(width: 3),
             Text(label, style: TextStyle(
                 fontSize: 11,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected ? Colors.white : AppColors.textSecondary)),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? color : AppColors.textSecondary)),
           ],
         ),
       ),
@@ -452,11 +460,12 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   String _getCategoryLabel(TaskCategory cat) {
+    final l10n = AppLocalizations.of(context)!;
     switch (cat) {
-      case TaskCategory.class_: return 'Lớp học';
-      case TaskCategory.exam: return 'Kỳ thi';
-      case TaskCategory.assignment: return 'Bài tập';
-      case TaskCategory.personal: return 'Cá nhân';
+      case TaskCategory.class_: return l10n.filterClass;
+      case TaskCategory.exam: return l10n.filterExam;
+      case TaskCategory.assignment: return l10n.filterAssignment;
+      case TaskCategory.personal: return l10n.filterPersonal;
     }
   }
 
@@ -523,10 +532,14 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   static const _groupOrder = ['Overdue', 'Today', 'Tomorrow', 'This Week', 'Later', 'No Date'];
-  static const _groupLabels = {
-    'Overdue': 'Quá hạn', 'Today': 'Hôm nay', 'Tomorrow': 'Ngày mai',
-    'This Week': 'Tuần này', 'Later': 'Sau đó', 'No Date': 'Không có ngày',
-  };
+
+  Map<String, String> _getGroupLabels() {
+    final l10n = AppLocalizations.of(context)!;
+    return {
+      'Overdue': l10n.overdue, 'Today': l10n.today, 'Tomorrow': l10n.tomorrow,
+      'This Week': l10n.thisWeek, 'Later': l10n.later, 'No Date': l10n.noDate,
+    };
+  }
   static final _groupColors = {
     'Overdue': AppColors.red, 'Today': AppColors.orange,
     'Tomorrow': AppColors.primary, 'This Week': AppColors.green,
@@ -555,7 +568,7 @@ class _TaskScreenState extends State<TaskScreen> {
                 decoration: BoxDecoration(color: _groupColors[g], shape: BoxShape.circle,
                     boxShadow: [BoxShadow(color: _groupColors[g]!.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: -1)])),
             const SizedBox(width: 8),
-            Text(_groupLabels[g] ?? g, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+            Text(_getGroupLabels()[g] ?? g, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
                 color: AppColors.textMuted.withValues(alpha: 0.7))),
             const SizedBox(width: 8),
             Text('${tasks.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _groupColors[g])),
@@ -586,9 +599,9 @@ class _TaskScreenState extends State<TaskScreen> {
       final now = DateTime.now();
       String dateStr;
       if (d.year == now.year && d.month == now.month && d.day == now.day) {
-        dateStr = 'Hôm nay';
+        dateStr = AppLocalizations.of(context)!.today;
       } else if (d.year == now.year && d.month == now.month && d.day == now.day + 1) {
-        dateStr = 'Ngày mai';
+        dateStr = AppLocalizations.of(context)!.tomorrow;
       } else {
         dateStr = DateFormat('dd/MM').format(d);
       }
@@ -605,11 +618,12 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context)!;
     final quotes = [
-      "Hôm nay thật thư giãn — chưa có task nào!",
-      "Tận hưởng ngày mới, task sẽ đến sau.",
-      "Đã xong hết rồi, nghỉ ngơi thôi!",
-      "Một ngày trống trải — hãy thêm task mới.",
+      l10n.emptyRelax,
+      l10n.emptyRelaxDesc,
+      l10n.emptyDone,
+      l10n.emptyFree,
     ];
     final quote = quotes[DateTime.now().day % quotes.length];
 
@@ -634,7 +648,7 @@ class _TaskScreenState extends State<TaskScreen> {
                     color: AppColors.textMuted.withValues(alpha: 0.6),
                     fontStyle: FontStyle.italic, height: 1.5)),
             const SizedBox(height: 6),
-            Text('Nhập task ở ô phía trên',
+            Text(AppLocalizations.of(context)!.emptyHint,
                 style: TextStyle(fontSize: 11,
                     color: AppColors.textMuted.withValues(alpha: 0.35))),
           ],

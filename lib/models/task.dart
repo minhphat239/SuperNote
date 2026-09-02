@@ -45,6 +45,7 @@ class Task {
   DateTime? repeatEndDate;
   int? preReminderOffset;
   TaskStatus status;
+  List<String> attachments;
   final DateTime createdAt;
   DateTime updatedAt;
 
@@ -61,20 +62,26 @@ class Task {
     this.repeatEndDate,
     this.preReminderOffset,
     this.status = TaskStatus.pending,
+    List<String>? attachments,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now(),
-        subtasks = subtasks ?? [];
+        subtasks = subtasks ?? [],
+        attachments = attachments ?? [];
 
   bool get hasNote => noteContent.trim().isNotEmpty;
+  bool get hasAttachments => attachments.isNotEmpty;
 
   DateTime? get deadline {
-    if (dueDate != null && dueTime != null) {
+    if (dueDate == null) return null;
+    if (dueTime != null) {
       return DateTime(dueDate!.year, dueDate!.month, dueDate!.day,
           dueTime!.hour, dueTime!.minute);
     }
-    return dueDate;
+    // No specific time → treat as end-of-day so a task created today
+    // (dueDate = today, dueTime = null) is NOT marked overdue until midnight passes.
+    return DateTime(dueDate!.year, dueDate!.month, dueDate!.day, 23, 59, 59);
   }
 
   bool get isDone => status == TaskStatus.done;
@@ -97,6 +104,7 @@ class Task {
       'repeatEndDate': repeatEndDate?.toIso8601String(),
       'preReminderOffset': preReminderOffset,
       'status': status.name,
+      'attachments': attachments,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -127,6 +135,7 @@ class Task {
         (e) => e.name == map['status'],
         orElse: () => TaskStatus.pending,
       ),
+      attachments: (map['attachments'] as List<dynamic>?)?.cast<String>() ?? [],
       createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
     );
@@ -144,6 +153,7 @@ class Task {
     DateTime? repeatEndDate,
     int? preReminderOffset,
     TaskStatus? status,
+    List<String>? attachments,
   }) {
     return Task(
       id: id,
@@ -158,6 +168,7 @@ class Task {
       repeatEndDate: repeatEndDate ?? this.repeatEndDate,
       preReminderOffset: preReminderOffset ?? this.preReminderOffset,
       status: status ?? this.status,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

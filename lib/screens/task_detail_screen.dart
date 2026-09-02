@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 import '../core/theme/app_theme.dart';
 import '../models/task.dart';
+import '../l10n/app_localizations.dart';
 import '../services/task_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -80,7 +83,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       size: 36, color: AppColors.error),
                   const SizedBox(height: 12),
                   Text(
-                    'Xóa task?',
+                    AppLocalizations.of(context)!.deleteTask,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -103,7 +106,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     children: [
                       Expanded(
                         child: _buildGlassDialogBtn(
-                          label: 'Hủy',
+                          label: AppLocalizations.of(context)!.cancel,
                           color: AppColors.textMuted,
                           onTap: () => Navigator.pop(ctx, false),
                         ),
@@ -111,7 +114,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _buildGlassDialogBtn(
-                          label: 'Xóa',
+                          label: AppLocalizations.of(context)!.delete,
                           color: AppColors.error,
                           onTap: () => Navigator.pop(ctx, true),
                         ),
@@ -213,6 +216,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                       // ===== NOTES GLASS CARD =====
                       _buildNotesCard(),
+                      if (widget.task.attachments.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        _buildAttachmentsCard(),
+                      ],
                     ],
                   ),
                 ),
@@ -285,7 +292,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _isDone ? 'Xong' : 'Đánh dấu xong',
+                        _isDone ? AppLocalizations.of(context)!.markDoneShort : AppLocalizations.of(context)!.markDone,
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -388,11 +395,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   keyboardType: TextInputType.multiline,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
-                    hintText: 'Tiêu đề task...',
+                    hintText: AppLocalizations.of(context)!.taskTitle,
                     hintStyle: TextStyle(
                         color: AppColors.textMuted.withValues(alpha: 0.5),
                         fontSize: 20,
                         fontWeight: FontWeight.w600),
+                    filled: false,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -448,7 +456,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Giờ học',
+                          AppLocalizations.of(context)!.selectTime,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -495,7 +503,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'Ngày',
+                            AppLocalizations.of(context)!.selectDate,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
@@ -535,7 +543,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                   ),
                   child: Text(
-                    'Quá hạn',
+                    AppLocalizations.of(context)!.expired,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -577,7 +585,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       size: 16, color: AppColors.primary.withValues(alpha: 0.7)),
                   const SizedBox(width: 8),
                   Text(
-                    'Ghi chú',
+                    AppLocalizations.of(context)!.taskNotes,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -597,17 +605,73 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
-                  hintText: 'Viết ghi chú...\nHỗ trợ checklist, bullet points, freely.',
+                  hintText: AppLocalizations.of(context)!.taskNotesHint,
                   hintStyle: TextStyle(
                       color: AppColors.textMuted.withValues(alpha: 0.3),
                       fontSize: 15,
                       height: 1.7),
+                  filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== ATTACHMENTS GLASS CARD =====
+  Widget _buildAttachmentsCard() {
+    final files = widget.task.attachments;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.attach_file_rounded, size: 16, color: AppColors.primaryLight),
+                  const SizedBox(width: 8),
+                  Text('${files.length} tệp đính kèm',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...files.map((path) {
+                final name = path.split(Platform.pathSeparator).last;
+                final ext = name.split('.').last.toLowerCase();
+                final icon = _getFileIcon(ext);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 16, color: AppColors.primaryLight),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),
@@ -638,20 +702,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               children: [
                 _buildToolbarBtn(
                   icon: Icons.notifications_active_rounded,
-                  label: 'Báo thức',
+                  label: AppLocalizations.of(context)!.alarm,
                   color: AppColors.orange,
+                  onTap: _showAlarmPicker,
                 ),
                 const SizedBox(width: 10),
                 _buildToolbarBtn(
                   icon: Icons.label_rounded,
-                  label: 'Tag',
+                  label: AppLocalizations.of(context)!.filterAll,
                   color: AppColors.teal,
+                  onTap: _showCategoryPicker,
                 ),
                 const SizedBox(width: 10),
                 _buildToolbarBtn(
                   icon: Icons.attach_file_rounded,
                   label: 'File',
                   color: AppColors.primaryLight,
+                  onTap: _showFileOption,
+                  badge: widget.task.attachments.isNotEmpty ? widget.task.attachments.length : null,
                 ),
               ],
             ),
@@ -661,39 +729,385 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  void _showAlarmPicker() {
+    final offsets = <int?>[5, 10, 15, 30, 60, 120, 1440];
+    final labels = <String>['5 min', '10 min', '15 min', '30 min', '1 giờ', '2 giờ', '1 ngày'];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.9),
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_active_rounded, size: 18, color: AppColors.orange),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.of(context)!.alarm,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (widget.task.preReminderOffset != null)
+                      GestureDetector(
+                        onTap: () async {
+                          await widget.taskService.updateTask(
+                            widget.task.id, preReminderOffset: null);
+                          if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                        },
+                        child: Text(AppLocalizations.of(context)!.delete,
+                            style: TextStyle(fontSize: 13, color: AppColors.error)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...List.generate(offsets.length, (i) {
+                  final isSelected = widget.task.preReminderOffset == offsets[i];
+                  return GestureDetector(
+                    onTap: () async {
+                      await widget.taskService.updateTask(
+                        widget.task.id, preReminderOffset: offsets[i]);
+                      if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.orange.withValues(alpha: 0.15)
+                            : Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? AppColors.orange : Colors.white.withValues(alpha: 0.08),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 16,
+                              color: isSelected ? AppColors.orange : AppColors.textMuted),
+                          const SizedBox(width: 12),
+                          Text('Nhắc trước ${labels[i]}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: isSelected ? AppColors.orange : AppColors.textPrimary)),
+                          const Spacer(),
+                          if (isSelected)
+                            Icon(Icons.check_circle_rounded, size: 18, color: AppColors.orange),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryPicker() {
+    final cats = TaskCategory.values;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.9),
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.label_rounded, size: 18, color: AppColors.teal),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.of(context)!.categoryBreakdown,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...cats.map((cat) {
+                  final isSelected = widget.task.category == cat;
+                  return GestureDetector(
+                    onTap: () async {
+                      await widget.taskService.updateTask(
+                        widget.task.id, category: cat);
+                      if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? cat.color.withValues(alpha: 0.15)
+                            : Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? cat.color : Colors.white.withValues(alpha: 0.08),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(_categoryIcon(cat), size: 18,
+                              color: isSelected ? cat.color : AppColors.textMuted),
+                          const SizedBox(width: 12),
+                          Text(cat.label,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: isSelected ? cat.color : AppColors.textPrimary)),
+                          const Spacer(),
+                          if (isSelected)
+                            Icon(Icons.check_circle_rounded, size: 18, color: cat.color),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFileOption() {
+    final files = widget.task.attachments;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.9),
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.attach_file_rounded, size: 18, color: AppColors.primaryLight),
+                    const SizedBox(width: 8),
+                    const Text('Đính kèm tệp',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Add file button
+                GestureDetector(
+                  onTap: () async {
+                    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+                    if (result != null) {
+                      final newPaths = result.paths.whereType<String>().toList();
+                      final updated = [...widget.task.attachments, ...newPaths];
+                      await widget.taskService.updateTask(widget.task.id, attachments: updated);
+                      if (mounted) setState(() {});
+                      Navigator.pop(ctx);
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('Chọn tệp từ thiết bị',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                      ],
+                    ),
+                  ),
+                ),
+                if (files.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('${files.length} tệp đã đính kèm',
+                      style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  const SizedBox(height: 8),
+                  ...files.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final path = entry.value;
+                    final name = path.split(Platform.pathSeparator).last;
+                    final ext = name.split('.').last.toLowerCase();
+                    final icon = _getFileIcon(ext);
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(icon, size: 18, color: AppColors.primaryLight),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                                Text(ext.toUpperCase(),
+                                    style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              final updated = List<String>.from(files)..removeAt(idx);
+                              await widget.taskService.updateTask(widget.task.id, attachments: updated);
+                              if (mounted) setState(() {});
+                              Navigator.pop(ctx);
+                            },
+                            child: Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+        return Icons.image_rounded;
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+        return Icons.videocam_rounded;
+      case 'mp3':
+      case 'wav':
+      case 'm4a':
+        return Icons.audio_file_rounded;
+      case 'pdf':
+        return Icons.picture_as_pdf_rounded;
+      case 'doc':
+      case 'docx':
+        return Icons.description_rounded;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart_rounded;
+      case 'zip':
+      case 'rar':
+        return Icons.folder_zip_rounded;
+      default:
+        return Icons.insert_drive_file_rounded;
+    }
+  }
+
   Widget _buildToolbarBtn({
     required IconData icon,
     required String label,
     required Color color,
+    required VoidCallback onTap,
+    int? badge,
   }) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: color.withValues(alpha: 0.2),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+        onTap: onTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                  width: 0.5,
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (badge != null)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$badge',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

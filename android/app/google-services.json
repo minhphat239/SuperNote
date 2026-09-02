@@ -12,7 +12,12 @@
           "package_name": "com.example.super_note"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "889510277964-tgq1i8i3dvsgj0kpbrcrpimbn7c8fqth.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA-qi3Csnn3qbmothMVlQ4MMpYHw5VrTqs"
@@ -20,7 +25,49 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889510277964-tgq1i8i3dvsgj0kpbrcrpimbn7c8fqth.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889510277964:android:4df7a1ff04896860e7d5e9",
+        "android_client_info": {
+          "package_name": "com.supernote"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "889510277964-8fnu6gmnup3v2tut6092kmro3nrkhnuq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.supernote",
+            "certificate_hash": "41675b9f77da99743c3e6fcb3cc26d6026b58f54"
+          }
+        },
+        {
+          "client_id": "889510277964-tgq1i8i3dvsgj0kpbrcrpimbn7c8fqth.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-qi3Csnn3qbmothMVlQ4MMpYHw5VrTqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889510277964-tgq1i8i3dvsgj0kpbrcrpimbn7c8fqth.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

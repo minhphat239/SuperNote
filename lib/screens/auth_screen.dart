@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/glass_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 
@@ -80,7 +81,7 @@ class _AuthScreenState extends State<AuthScreen>
       if (!mounted) return;
       if (!success) {
         setState(() {
-          _error = 'Bạn đã hủy chọn tài khoản Google';
+          _error = AppLocalizations.of(context)!.authGoogleCancelled;
           _isLoading = false;
         });
       }
@@ -88,7 +89,7 @@ class _AuthScreenState extends State<AuthScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _friendlyError(e);
+        _error = _friendlyError(e, context);
         _isLoading = false;
       });
     }
@@ -101,21 +102,21 @@ class _AuthScreenState extends State<AuthScreen>
     // Validate
     if (_emailController.text.trim().isEmpty ||
         _passController.text.isEmpty) {
-      setState(() => _error = 'Vui lòng nhập đầy đủ email và mật khẩu');
+      setState(() => _error = AppLocalizations.of(context)!.authFillAll);
       return;
     }
 
     if (!_isLogin) {
       if (_nameController.text.trim().isEmpty) {
-        setState(() => _error = 'Vui lòng nhập tên');
+        setState(() => _error = AppLocalizations.of(context)!.authEnterName);
         return;
       }
       if (_passController.text != _confirmPassController.text) {
-        setState(() => _error = 'Mật khẩu xác nhận không khớp');
+        setState(() => _error = AppLocalizations.of(context)!.authPasswordMismatch);
         return;
       }
       if (_passController.text.length < 6) {
-        setState(() => _error = 'Mật khẩu phải có ít nhất 6 ký tự');
+        setState(() => _error = AppLocalizations.of(context)!.authWeakPassword);
         return;
       }
     }
@@ -142,7 +143,7 @@ class _AuthScreenState extends State<AuthScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _friendlyError(e);
+        _error = _friendlyError(e, context);
         _isLoading = false;
       });
     }
@@ -160,22 +161,22 @@ class _AuthScreenState extends State<AuthScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _friendlyError(e);
+        _error = _friendlyError(e, context);
         _isLoading = false;
       });
     }
   }
 
-  String _friendlyError(Object e) {
+  String _friendlyError(Object e, BuildContext context) {
     final msg = e.toString();
-    if (msg.contains('user-not-found')) return 'Không tìm thấy tài khoản';
-    if (msg.contains('wrong-password')) return 'Sai mật khẩu';
-    if (msg.contains('email-already-in-use')) return 'Email đã được sử dụng';
-    if (msg.contains('invalid-email')) return 'Email không hợp lệ';
-    if (msg.contains('weak-password')) return 'Mật khẩu quá yếu';
-    if (msg.contains('network-request-failed')) return 'Lỗi kết nối mạng';
-    if (msg.contains('invalid-credential')) return 'Thông tin đăng nhập không hợp lệ';
-    return msg.length > 100 ? 'Đã xảy ra lỗi. Vui lòng thử lại.' : msg;
+    if (msg.contains('user-not-found')) return AppLocalizations.of(context)!.authAccountNotFound;
+    if (msg.contains('wrong-password')) return AppLocalizations.of(context)!.authWrongPassword;
+    if (msg.contains('email-already-in-use')) return AppLocalizations.of(context)!.authEmailInUse;
+    if (msg.contains('invalid-email')) return AppLocalizations.of(context)!.authInvalidEmail;
+    if (msg.contains('weak-password')) return AppLocalizations.of(context)!.authTooWeak;
+    if (msg.contains('network-request-failed')) return AppLocalizations.of(context)!.authNetworkError;
+    if (msg.contains('invalid-credential')) return AppLocalizations.of(context)!.authInvalidCredential;
+    return msg;
   }
 
   @override
@@ -202,7 +203,7 @@ class _AuthScreenState extends State<AuthScreen>
                     ],
                     const SizedBox(height: 32),
                     Text(
-                      'Dữ liệu được lưu trữ an toàn trên thiết bị',
+                      AppLocalizations.of(context)!.authDataSafe,
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.textMuted.withValues(alpha: 0.5),
@@ -226,7 +227,7 @@ class _AuthScreenState extends State<AuthScreen>
           height: 80,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, Color(0xFF9B59B6)],
+              colors: [AppColors.primary, AppColors.secondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -251,7 +252,7 @@ class _AuthScreenState extends State<AuthScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          'Quản lý công việc thông minh',
+          AppLocalizations.of(context)!.authTagline,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.textMuted,
               ),
@@ -266,7 +267,7 @@ class _AuthScreenState extends State<AuthScreen>
         // ===== GOOGLE =====
         _AuthButton(
           icon: Icons.g_mobiledata_rounded,
-          label: 'Đăng nhập bằng Google',
+          label: AppLocalizations.of(context)!.authGoogleSignIn,
           color: const Color(0xFF4285F4),
           isLoading: _isLoading,
           onTap: _signInWithGoogle,
@@ -280,7 +281,7 @@ class _AuthScreenState extends State<AuthScreen>
             Expanded(child: Divider(color: AppColors.border)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Text('hoặc',
+              child: Text(AppLocalizations.of(context)!.authOr,
                   style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
             ),
             Expanded(child: Divider(color: AppColors.border)),
@@ -295,7 +296,7 @@ class _AuthScreenState extends State<AuthScreen>
         // ===== GUEST =====
         _AuthButton(
           icon: Icons.phone_android_rounded,
-          label: 'Sử dụng ngay (khách)',
+          label: AppLocalizations.of(context)!.authGuest,
           color: AppColors.green,
           isOutlined: true,
           isLoading: _isLoading,
@@ -324,7 +325,7 @@ class _AuthScreenState extends State<AuthScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _isLogin ? 'Đăng nhập bằng Email' : 'Tạo tài khoản mới',
+                  _isLogin ? AppLocalizations.of(context)!.authEmailSignIn : AppLocalizations.of(context)!.authEmailRegister,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -340,7 +341,7 @@ class _AuthScreenState extends State<AuthScreen>
           if (!_isLogin) ...[
             _FieldInput(
               controller: _nameController,
-              hint: 'Tên của bạn',
+              hint: AppLocalizations.of(context)!.authNameHint,
               icon: Icons.person_outline_rounded,
             ),
             const SizedBox(height: 10),
@@ -358,7 +359,7 @@ class _AuthScreenState extends State<AuthScreen>
           // Password
           _FieldInput(
             controller: _passController,
-            hint: 'Mật khẩu',
+            hint: AppLocalizations.of(context)!.authPasswordHint,
             icon: Icons.lock_outline_rounded,
             obscure: _obscurePass,
             suffix: IconButton(
@@ -376,7 +377,7 @@ class _AuthScreenState extends State<AuthScreen>
             const SizedBox(height: 10),
             _FieldInput(
               controller: _confirmPassController,
-              hint: 'Xác nhận mật khẩu',
+              hint: AppLocalizations.of(context)!.authConfirmPassword,
               icon: Icons.lock_outline_rounded,
               obscure: _obscureConfirm,
               suffix: IconButton(
@@ -416,7 +417,7 @@ class _AuthScreenState extends State<AuthScreen>
                       ),
                     )
                   : Text(
-                      _isLogin ? 'Đăng nhập' : 'Đăng ký',
+                      _isLogin ? AppLocalizations.of(context)!.authLoginButton : AppLocalizations.of(context)!.authRegisterButton,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -436,8 +437,8 @@ class _AuthScreenState extends State<AuthScreen>
               }),
               child: Text(
                 _isLogin
-                    ? 'Chưa có tài khoản? Đăng ký ngay'
-                    : 'Đã có tài khoản? Đăng nhập',
+                    ? AppLocalizations.of(context)!.authNoAccount
+                    : AppLocalizations.of(context)!.authHasAccount,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.primary,
@@ -461,12 +462,12 @@ class _AuthScreenState extends State<AuthScreen>
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _error!,
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
+              style: TextStyle(color: AppColors.error, fontSize: 13),
             ),
           ),
         ],

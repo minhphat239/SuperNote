@@ -26,25 +26,24 @@ class AppColors {
   static Color get primary => _activeTheme.accent;
   static Color get primaryLight => _activeTheme.accentLight;
   static Color get primaryDark => _activeTheme.accent;
+  static Color get secondary => _activeTheme.secondary;
   static List<Color> get primaryGradient => _activeTheme.accentGradient;
+  /// Text/icon color used on top of accent surfaces (gradient buttons, primary bubbles).
+  /// Matrix theme overrides this to #1A1A1A so dark text sits on the bright green accent.
+  static Color get onAccent => _activeTheme.onAccent;
 
-  // — Cyber-Luxe Accent Colors —
-  static const Color cyberBlueViolet = Color(0xFF6366F1);  // Primary actions
-  static const Color magentaPink = Color(0xFFEC4899);      // Badges, notifications
-  static const Color warmCreamGold = Color(0xFFF59E0B);    // Event dots, AI icons
+  // — Categories (dynamic per theme) —
+  static Color get blue => _activeTheme.accent;
+  static Color get red => _activeTheme.secondary;
+  static Color get orange => _activeTheme.accentLight;
+  static Color get green => _activeTheme.secondary;
+  static Color get purple => _activeTheme.secondary;
+  static Color get teal => _activeTheme.accentLight;
 
-  // — Categories —
-  static const Color blue = Color(0xFF60A5FA);
-  static const Color red = Color(0xFFEC4899);
-  static const Color orange = Color(0xFFF59E0B);
-  static const Color green = Color(0xFF34D399);
-  static const Color purple = Color(0xFFA78BFA);
-  static const Color teal = Color(0xFF2DD4BF);
-
-  // — Semantic —
-  static const Color success = Color(0xFF34D399);
-  static const Color error = Color(0xFFEC4899);
-  static const Color warning = Color(0xFFF59E0B);
+  // — Semantic (dynamic per theme) —
+  static Color get success => _activeTheme.secondary;
+  static Color get error => _activeTheme.secondary;
+  static Color get warning => _activeTheme.accentLight;
 
   // — Borders & Dividers —
   static Color get border => _activeTheme.surfaceLight;
@@ -61,19 +60,24 @@ class AppColors {
   static double get glassOpacity => _activeTheme.glassOpacity;
   static Color get glassBorderStart => _activeTheme.borderStart;
   static Color get glassBorderEnd => _activeTheme.borderEnd;
+  static Color get glassBorderColor => _activeTheme.glassBorderColor;
 
-  // — Category color map —
-  static const Map<String, Color> categoryColors = {
+  // — Neon orbs (background glow) —
+  static List<Color> get orbColors => _activeTheme.orbColors;
+  static double get orbOpacity => _activeTheme.orbOpacity;
+
+  // — Category color map (dynamic) —
+  static Map<String, Color> get categoryColors => {
     'Class': blue,
     'Exam': red,
     'Assignment': orange,
     'Personal': green,
   };
 
-  static const Map<String, Color> priorityColors = {
-    'high': Color(0xFFEC4899),
-    'medium': Color(0xFFF59E0B),
-    'low': Color(0xFF34D399),
+  static Map<String, Color> get priorityColors => {
+    'high': error,
+    'medium': warning,
+    'low': success,
   };
 
   // Update the active theme
@@ -136,14 +140,14 @@ class AppShadow {
 class AppGradient {
   AppGradient._();
 
-  static const LinearGradient primary = LinearGradient(
-    colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+  static LinearGradient get primary => LinearGradient(
+    colors: _activeTheme.accentGradient,
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  static const LinearGradient surface = LinearGradient(
-    colors: [Color(0xFF181A2A), Color(0xFF1E2035)],
+  static LinearGradient get surface => LinearGradient(
+    colors: [_activeTheme.surface, _activeTheme.surfaceLight],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );

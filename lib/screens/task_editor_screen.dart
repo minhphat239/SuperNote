@@ -156,7 +156,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.red)),
+            child: Text('Delete', style: TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -253,7 +253,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: _delete,
-                  child: const Text('Delete Task', style: TextStyle(color: AppColors.red, fontSize: 15)),
+                  child: Text('Delete Task', style: TextStyle(color: AppColors.red, fontSize: 15)),
                 ),
               ),
             ],
@@ -357,7 +357,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.red),
             ),
           ),
         ],
@@ -394,7 +394,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.red),
             ),
           ),
         ],
@@ -533,7 +533,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.red),
             ),
           ),
         ],
@@ -551,7 +551,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.purple),
+            colorScheme: ColorScheme.light(primary: AppColors.purple),
           ),
           child: child!,
         );

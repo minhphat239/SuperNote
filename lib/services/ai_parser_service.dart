@@ -88,10 +88,14 @@ class AiParserService {
   Future<AiParsedTask> parseTaskInput(String input) async {
     if (isConfigured) {
       try {
-        final result = await _parseWithGemini(input);
+        final result = await _parseWithGemini(input)
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () => throw Exception('AI timeout — dùng parser nội bộ'),
+            );
         if (result.success) return result;
       } catch (e) {
-        developer.log('Gemini parse failed, falling back to regex', error: e, name: 'AiParserService');
+        developer.log('Gemini parse failed/timeout, fallback to regex', error: e, name: 'AiParserService');
       }
     }
     return _parseWithRegex(input);

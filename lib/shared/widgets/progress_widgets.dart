@@ -65,25 +65,22 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary
-                      : isToday
-                          ? AppColors.primary.withValues(alpha: 0.1)
-                          : Colors.transparent,
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primary
-                        : (isToday
-                            ? AppColors.primary.withValues(alpha: 0.3)
-                            : Colors.white.withValues(alpha: 0.04)),
+                        : Colors.white.withValues(alpha: 0.08),
                     width: isSelected ? 1.5 : 0.5,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              spreadRadius: -2)
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
                         ]
                       : null,
                 ),
@@ -94,9 +91,9 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                       dayNames[i],
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
-                            ? Colors.white.withValues(alpha: 0.8)
+                            ? AppColors.primary
                             : AppColors.textMuted.withValues(alpha: 0.6),
                       ),
                     ),
@@ -105,10 +102,9 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                       '${day.day}',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight:
-                            isToday ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w600,
                         color: isSelected
-                            ? Colors.white
+                            ? AppColors.primary
                             : (isToday
                                 ? AppColors.primary
                                 : AppColors.textPrimary),
@@ -127,8 +123,8 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                                 const EdgeInsets.symmetric(horizontal: 1),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.8)
-                                  : AppColors.primary.withValues(alpha: 0.6),
+                                  ? AppColors.primary.withValues(alpha: 0.8)
+                                  : AppColors.primary.withValues(alpha: 0.4),
                               shape: BoxShape.circle,
                             ),
                           ),

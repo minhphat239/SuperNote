@@ -1,15 +1,25 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/nlp_dual_stage.dart';
 import '../../models/task.dart';
-import '../widgets/glass_widgets.dart';
+import '../../services/feedback_service.dart';
+import '../../services/gemini_service.dart';
+import 'glass_widgets.dart';
+import 'task_confirmation_dialog.dart';
 
 class NlpInputBar extends StatefulWidget {
-  final Function(DualStageResult) onSubmit;
+  final Function(List<DualStageResult>) onSubmit;
+  final GeminiService? geminiService;
   final String hintText;
 
-  const NlpInputBar({super.key, required this.onSubmit, this.hintText = 'Thêm nhanh task...'});
+  const NlpInputBar({
+    super.key,
+    required this.onSubmit,
+    this.geminiService,
+    this.hintText = 'Thêm nhanh task...',
+  });
 
   @override
   State<NlpInputBar> createState() => _NlpInputBarState();
@@ -58,20 +68,185 @@ class _NlpInputBarState extends State<NlpInputBar> with SingleTickerProviderStat
 
   void _submit() async {
     if (_ctrl.text.trim().isEmpty) return;
+    final input = _ctrl.text.trim();
 
-    // AI processing animation
-    if (_aiEnabled) {
-      setState(() => _isProcessing = true);
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
-      setState(() => _isProcessing = false);
+    List<DualStageResult> results = [];
+
+    // Decide: Gemini (configured + online) vs Local NLP
+    final gemini = widget.geminiService;
+    final canUseGemini =
+        _aiEnabled && gemini != null && gemini.isConfigured;
+
+    if (canUseGemini) {
+      final hasInternet = await _checkInternet();
+      if (hasInternet) {
+        setState(() => _isProcessing = true);
+        if (!mounted) return;
+        try {
+          final parsedList = await gemini.parseTaskInput(input).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => <GeminiParsedTask>[],
+              );
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          if (parsedList.isNotEmpty) {
+            results = parsedList.map(_convertGeminiToDual).toList();
+          } else {
+            results = _splitAndParseLocal(input);
+          }
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          results = _splitAndParseLocal(input);
+        }
+      } else {
+        results = _splitAndParseLocal(input);
+      }
+    } else {
+      results = _splitAndParseLocal(input);
     }
 
-    final result = NlpDualStageParser.parse(_ctrl.text);
-    widget.onSubmit(result);
-    _ctrl.clear();
-    setState(() => _preview = null);
-    _focusNode.unfocus();
+    // Show confirmation dialog
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => TaskConfirmationDialog(
+        parsedList: results,
+        rawInput: input,
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      FeedbackService().trigger(FeedbackType.complete);
+      widget.onSubmit(results);
+      _ctrl.clear();
+      setState(() => _preview = null);
+      _focusNode.unfocus();
+    }
+  }
+
+  /// Split input by commas/semicolons/conjunctions and parse each chunk locally.
+  /// If only 1 chunk (no clear separators), parse the whole input as one task.
+  List<DualStageResult> _splitAndParseLocal(String input) {
+    final chunks = _splitMultiTaskInput(input);
+    return chunks.map(NlpDualStageParser.parse).toList();
+  }
+
+  List<String> _splitMultiTaskInput(String input) {
+    // First try splitting on common Vietnamese/English separators between tasks.
+    // Use a heuristic: split on ";" or numbered list, or " và ", " rồi ", " sau đó ", " còn ", " then ", " and ".
+    // BUT only split if the chunk still looks like a task (has content after trim).
+    final primarySplits = input.split(RegExp(r'\s*(?:\.\s|;\s|,\s*(?=\S+\s+(?:lúc|vào|lúc|nhắc|gấp|sau|mai|nay|tối|sáng|chiều))|(?:\s+và\s+|\s+rồi\s+|\s+sau\s*đó\s+|\s+còn\s+|\s+then\s+|\s+and\s+))'));
+    if (primarySplits.length <= 1) return [input];
+
+    final cleaned = primarySplits
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (cleaned.length <= 1) return [input];
+
+    return cleaned;
+  }
+
+  Future<bool> _checkInternet() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      return !results.contains(ConnectivityResult.none);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  DualStageResult _convertGeminiToDual(GeminiParsedTask parsed) {
+    // Build targetTime from parsed date + time
+    DateTime? targetTime;
+    if (parsed.dueDate != null && parsed.dueTime != null) {
+      targetTime = DateTime(
+        parsed.dueDate!.year, parsed.dueDate!.month, parsed.dueDate!.day,
+        parsed.dueTime!.hour, parsed.dueTime!.minute,
+      );
+    } else if (parsed.dueDate != null) {
+      targetTime = DateTime(
+        parsed.dueDate!.year, parsed.dueDate!.month, parsed.dueDate!.day,
+        9, 0, // default 9:00 AM if only date provided
+      );
+    } else if (parsed.dueTime != null) {
+      final now = DateTime.now();
+      final todayTime = DateTime(now.year, now.month, now.day,
+          parsed.dueTime!.hour, parsed.dueTime!.minute);
+      targetTime = todayTime.isAfter(now)
+          ? todayTime
+          : todayTime.add(const Duration(days: 1));
+    }
+
+    // Determine intent from category
+    TaskIntent intent;
+    switch (parsed.category) {
+      case TaskCategory.class_:
+      case TaskCategory.personal:
+        intent = TaskIntent.event;
+        break;
+      case TaskCategory.exam:
+      case TaskCategory.assignment:
+        intent = TaskIntent.deadline;
+        break;
+    }
+
+    // Calculate dual-stage reminders
+    DateTime? stage1Time;
+    String stage1Label = '';
+    DateTime? stage2Time;
+    String stage2Label = '';
+
+    if (targetTime != null) {
+      stage2Time = targetTime;
+      final remMin = parsed.preReminderOffset;
+      if (remMin != null && remMin > 0) {
+        stage1Time = targetTime.subtract(Duration(minutes: remMin));
+        if (remMin >= 60) {
+          final h = remMin ~/ 60;
+          stage1Label = 'Nhắc trước $h giờ';
+        } else {
+          stage1Label = 'Nhắc trước $remMin phút';
+        }
+      } else {
+        switch (intent) {
+          case TaskIntent.event:
+            stage1Time = targetTime.subtract(const Duration(minutes: 30));
+            stage1Label = 'Nhắc chuẩn bị';
+            stage2Label = 'Bắt đầu';
+            break;
+          case TaskIntent.deadline:
+            stage1Time = targetTime.subtract(const Duration(hours: 2));
+            stage1Label = 'Nhắc chuẩn bị';
+            stage2Label = 'Hạn cuối';
+            break;
+          case TaskIntent.reminder:
+            stage1Time = targetTime.subtract(const Duration(minutes: 15));
+            stage1Label = 'Nhắc nhở';
+            stage2Label = 'Đúng giờ';
+            break;
+        }
+      }
+      if (stage2Label.isEmpty) {
+        stage2Label = intent == TaskIntent.event ? 'Bắt đầu' : 'Đúng giờ';
+      }
+    }
+
+    return DualStageResult(
+      title: parsed.title,
+      intent: intent,
+      targetTime: targetTime,
+      category: parsed.category,
+      tags: parsed.tags,
+      stage1Time: stage1Time,
+      stage1Label: stage1Label,
+      stage2Time: stage2Time,
+      stage2Label: stage2Label,
+      preReminderOffset: parsed.preReminderOffset,
+      description: parsed.description,
+    );
   }
 
   @override
@@ -117,6 +292,7 @@ class _NlpInputBarState extends State<NlpInputBar> with SingleTickerProviderStat
                                 color: AppColors.textMuted.withValues(alpha: 0.5),
                                 fontSize: 12.5,
                                 height: 1.4),
+                            filled: false,
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,

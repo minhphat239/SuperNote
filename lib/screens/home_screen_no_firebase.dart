@@ -90,7 +90,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
         content: Text('Delete "${note.title}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.error))),
         ],
       ),
     );

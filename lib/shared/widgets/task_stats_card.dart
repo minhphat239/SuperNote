@@ -66,7 +66,7 @@ class _TaskStatsCardState extends State<TaskStatsCard> {
                       ),
                       child: Text(
                         'Quá hạn $overdue',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: AppColors.error,

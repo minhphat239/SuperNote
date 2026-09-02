@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../services/auto_update_service.dart';
 import '../services/feedback_service.dart';
 
@@ -104,7 +105,9 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
 
         // Title
         Text(
-          update.isCritical ? 'Cập nhật quan trọng!' : 'Có phiên bản mới',
+          update.isCritical
+              ? AppLocalizations.of(context)!.updateTitle
+              : AppLocalizations.of(context)!.updateNewVersion,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -203,7 +206,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
           children: [
             Expanded(
               child: _buildBtn(
-                label: 'Bỏ qua',
+                label: AppLocalizations.of(context)!.updateSkip,
                 color: AppColors.textMuted,
                 onTap: () {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -216,7 +219,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             Expanded(
               flex: 2,
               child: _buildBtn(
-                label: 'Cập nhật ngay',
+                label: AppLocalizations.of(context)!.updateNow,
                 color: update.isCritical ? AppColors.error : AppColors.primary,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -288,7 +291,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 20),
 
         Text(
-          'Đang tải bản cập nhật...',
+          AppLocalizations.of(context)!.updateDownloading,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -320,7 +323,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 20),
 
         Text(
-          'Đừng đóng app trong khi tải nhé!',
+          AppLocalizations.of(context)!.updateDontClose,
           style: TextStyle(
             fontSize: 11,
             color: AppColors.textMuted.withValues(alpha: 0.5),
@@ -345,7 +348,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
               width: 1,
             ),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.check_circle_rounded,
             size: 28,
             color: AppColors.success,
@@ -354,7 +357,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 16),
 
         Text(
-          'Tải xong rồi!',
+          AppLocalizations.of(context)!.updateReady,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -364,7 +367,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 4),
 
         Text(
-          'Bấm 1 lần để cài đặt phiên bản mới',
+          AppLocalizations.of(context)!.updateInstallHint,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -377,7 +380,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
           children: [
             Expanded(
               child: _buildBtn(
-                label: 'Để sau',
+                label: AppLocalizations.of(context)!.updateLater,
                 color: AppColors.textMuted,
                 onTap: () {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -389,7 +392,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             Expanded(
               flex: 2,
               child: _buildBtn(
-                label: 'Cài đặt ngay',
+                label: AppLocalizations.of(context)!.updateInstall,
                 color: AppColors.success,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -420,7 +423,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
               width: 1,
             ),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.error_outline_rounded,
             size: 28,
             color: AppColors.error,
@@ -429,7 +432,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 16),
 
         Text(
-          'Tải xuống thất bại',
+          AppLocalizations.of(context)!.updateFailed,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -439,7 +442,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 4),
 
         Text(
-          _error ?? 'Lỗi không xác định',
+          _error ?? AppLocalizations.of(context)!.updateUnknownError,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
@@ -452,7 +455,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
           children: [
             Expanded(
               child: _buildBtn(
-                label: 'Đóng',
+                label: AppLocalizations.of(context)!.updateClose,
                 color: AppColors.textMuted,
                 onTap: () {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -463,7 +466,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             const SizedBox(width: 10),
             Expanded(
               child: _buildBtn(
-                label: 'Thử lại',
+                label: AppLocalizations.of(context)!.updateRetry,
                 color: AppColors.primary,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);

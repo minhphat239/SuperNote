@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../shared/widgets/glass_widgets.dart';
+import '../l10n/app_localizations.dart';
 import 'task_detail_screen.dart';
 
 class TimelineScreen extends StatefulWidget {
@@ -17,6 +19,21 @@ class TimelineScreen extends StatefulWidget {
 
 class _TimelineScreenState extends State<TimelineScreen> {
   TaskCategory? _selectedCategory;
+  StreamSubscription<List<Task>>? _taskSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _taskSubscription = widget.taskService.taskStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _taskSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +70,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     // Build timeline nodes
     final nodes = <_TimelineNode>[
       _TimelineNode(
-        title: 'Hôm nay',
+        title: AppLocalizations.of(context)!.timelineToday,
         subtitle: DateFormat('dd/MM').format(now),
         icon: Icons.today_rounded,
         color: AppColors.primary,
@@ -64,7 +81,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       ),
       if (tomorrowTasks.isNotEmpty)
         _TimelineNode(
-          title: 'Ngày mai',
+          title: AppLocalizations.of(context)!.tomorrow,
           subtitle: DateFormat('dd/MM', 'vi')
               .format(now.add(const Duration(days: 1))),
           icon: Icons.wb_sunny_outlined,
@@ -74,8 +91,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
           showTime: false,
         ),
       _TimelineNode(
-        title: 'Tuần này',
-        subtitle: '${thisWeekTasks.length} việc',
+        title: AppLocalizations.of(context)!.timelineThisWeek,
+        subtitle: '${thisWeekTasks.length} ${AppLocalizations.of(context)!.taskCount}',
         icon: Icons.date_range_rounded,
         color: AppColors.primaryLight,
         count: thisWeekTasks.length,
@@ -83,8 +100,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
         showTime: true,
       ),
       _TimelineNode(
-        title: 'Sắp tới',
-        subtitle: '${upcomingTasks.length} việc',
+        title: AppLocalizations.of(context)!.timelineUpcoming,
+        subtitle: '${upcomingTasks.length} ${AppLocalizations.of(context)!.taskCount}',
         icon: Icons.upcoming_rounded,
         color: AppColors.teal,
         count: upcomingTasks.length,
@@ -112,12 +129,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
           // ===== GLASS PROGRESS STATS =====
           SliverToBoxAdapter(
-            child: _buildProgressStatsCard(todayTasks, doneToday, totalToday),
+            child: _buildProgressStatsCard(context, todayTasks, doneToday, totalToday),
           ),
 
           // ===== QUICK FILTERS =====
           SliverToBoxAdapter(
-            child: _buildQuickFilters(),
+            child: _buildQuickFilters(context),
           ),
 
           // ===== BRANCH TIMELINE =====
@@ -135,7 +152,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   // ===== GLASS PROGRESS STATS =====
-  Widget _buildProgressStatsCard(List<Task> tasks, int done, int total) {
+  Widget _buildProgressStatsCard(BuildContext context, List<Task> tasks, int done, int total) {
     final now = DateTime.now();
     final pct = total > 0 ? done / total : 0.0;
 
@@ -157,7 +174,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
               Icon(Icons.pie_chart_rounded, size: 16, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
-                'Thống kê tiến độ',
+                AppLocalizations.of(context)!.progressLabel,
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -238,7 +255,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Đã xong',
+                      AppLocalizations.of(context)!.done,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -274,7 +291,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Đang chờ',
+                      AppLocalizations.of(context)!.pending,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -292,7 +309,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   // ===== QUICK FILTERS =====
-  Widget _buildQuickFilters() {
+  Widget _buildQuickFilters(BuildContext context) {
     return Container(
       height: 38,
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -300,11 +317,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildFilterChip('Tất cả', null),
-          _buildFilterChip('Lớp học', TaskCategory.class_),
-          _buildFilterChip('Kỳ thi', TaskCategory.exam),
-          _buildFilterChip('Bài tập', TaskCategory.assignment),
-          _buildFilterChip('Cá nhân', TaskCategory.personal),
+          _buildFilterChip(AppLocalizations.of(context)!.filterAll, null),
+          _buildFilterChip(AppLocalizations.of(context)!.filterClass, TaskCategory.class_),
+          _buildFilterChip(AppLocalizations.of(context)!.filterExam, TaskCategory.exam),
+          _buildFilterChip(AppLocalizations.of(context)!.filterAssignment, TaskCategory.assignment),
+          _buildFilterChip(AppLocalizations.of(context)!.filterPersonal, TaskCategory.personal),
         ],
       ),
     );
@@ -342,120 +359,130 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Widget _buildBranchTimeline(List<_TimelineNode> nodes) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ===== LEFT: Vertical axis + nodes =====
-          SizedBox(
-            width: 48,
-            child: Column(
-              children: List.generate(nodes.length, (i) {
-                final node = nodes[i];
-                final isLast = i == nodes.length - 1;
-                return _buildTimelineAxisNode(node, isLast);
-              }),
-            ),
-          ),
-
-          // ===== RIGHT: Branch lines + glass containers =====
-          Expanded(
-            child: Column(
-              children: List.generate(nodes.length, (i) {
-                final node = nodes[i];
-                return _buildBranchContainer(node);
-              }),
-            ),
-          ),
-        ],
+      child: Column(
+        children: List.generate(nodes.length, (i) {
+          final node = nodes[i];
+          final isFirst = i == 0;
+          final isLast = i == nodes.length - 1;
+          return _buildTimelineItem(node, isFirst, isLast);
+        }),
       ),
     );
   }
 
-  // ===== TIMELINE AXIS NODE (left side) =====
-  Widget _buildTimelineAxisNode(_TimelineNode node, bool isLast) {
+  // ===== SINGLE TIMELINE ITEM (date + line + card) =====
+  Widget _buildTimelineItem(_TimelineNode node, bool isFirst, bool isLast) {
     return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Vertical line + dot
-          Column(
-            children: [
-              // Dot
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: node.color,
-                  boxShadow: [
-                    BoxShadow(
-                      color: node.color.withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      spreadRadius: 1,
+          // ===== LEFT: Date + task count =====
+          SizedBox(
+            width: 44,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 14, right: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    node.subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textMuted.withValues(alpha: 0.7),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${node.count} ${AppLocalizations.of(context)!.taskCount}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ],
               ),
-              // Line going down
-              if (!isLast)
-                Expanded(
+            ),
+          ),
+
+          // ===== CENTER: Vertical line + neon dot =====
+          SizedBox(
+            width: 24,
+            child: Column(
+              children: [
+                // Top line (connect to previous)
+                if (!isFirst)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.08),
+                            node.color.withValues(alpha: 0.3),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (isFirst) const Spacer(),
+
+                // Neon dot
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: node.color,
+                    boxShadow: [
+                      BoxShadow(
+                        color: node.color.withValues(alpha: 0.5),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
                   child: Container(
-                    width: 1.5,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    width: 12,
+                    height: 12,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          node.color.withValues(alpha: 0.3),
-                          Colors.white.withValues(alpha: 0.08),
-                        ],
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
                       ),
                     ),
                   ),
                 ),
-              if (isLast) const SizedBox(height: 8),
-            ],
+
+                // Bottom line (connect to next)
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            node.color.withValues(alpha: 0.3),
+                            Colors.white.withValues(alpha: 0.08),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (isLast) const Spacer(),
+              ],
+            ),
           ),
+
           const SizedBox(width: 8),
-          // Date label under dot
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              node.subtitle,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMuted.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  // ===== BRANCH CONTAINER (right side) =====
-  Widget _buildBranchContainer(_TimelineNode node) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Horizontal branch line
-          Container(
-            width: 24,
-            margin: const EdgeInsets.only(top: 16),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Container(
-                height: 1.5,
-                width: 24,
-                color: node.color.withValues(alpha: 0.25),
-              ),
-            ),
-          ),
-
-          // Glass container
+          // ===== RIGHT: Glass content card =====
           Expanded(
             child: GlassContainer(
               margin: const EdgeInsets.only(bottom: 12),
@@ -469,7 +496,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Box header
+                  // Card header
                   Row(
                     children: [
                       Icon(node.icon, size: 15, color: node.color),
@@ -519,9 +546,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Box body: task list or empty state
+                  // Card body: task list or empty state
                   if (node.tasks.isEmpty)
-                    _buildBoxEmptyState()
+                    _buildBoxEmptyState(context)
                   else
                     ...node.tasks
                         .map((task) => _buildBoxTaskItem(task)),
@@ -535,7 +562,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   // ===== BOX EMPTY STATE =====
-  Widget _buildBoxEmptyState() {
+  Widget _buildBoxEmptyState(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -544,7 +571,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
               size: 14, color: AppColors.textMuted.withValues(alpha: 0.4)),
           const SizedBox(width: 8),
           Text(
-            'Không có lịch trình',
+            AppLocalizations.of(context)!.noSchedule,
             style: TextStyle(
               fontSize: 12,
               fontStyle: FontStyle.italic,

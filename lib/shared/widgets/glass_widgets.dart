@@ -195,7 +195,7 @@ class BounceCheck extends StatefulWidget {
   final double size;
   final VoidCallback? onTap;
 
-  const BounceCheck({super.key, required this.isChecked, this.color = AppColors.success, this.size = 24, this.onTap});
+  BounceCheck({super.key, required this.isChecked, Color? color, this.size = 24, this.onTap}) : color = color ?? AppColors.success;
 
   @override
   State<BounceCheck> createState() => _BounceCheckState();

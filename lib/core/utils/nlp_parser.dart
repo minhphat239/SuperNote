@@ -23,7 +23,9 @@ class NlpResult {
     if (dueTime != null) {
       return DateTime(date.year, date.month, date.day, dueTime!.hour, dueTime!.minute);
     }
-    return date;
+    // No specific time → end-of-day so a task created today with no time isn't
+    // marked overdue until midnight passes.
+    return DateTime(date.year, date.month, date.day, 23, 59, 59);
   }
 
   Color? get priorityColor {

@@ -96,7 +96,11 @@ class AuthService extends ChangeNotifier {
     try {
       _setLoading(true);
 
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn()
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw Exception('Kết nối Google quá thời gian. Vui lòng thử lại!'),
+          );
       if (googleUser == null) {
         _setLoading(false);
         return false;
@@ -109,7 +113,11 @@ class AuthService extends ChangeNotifier {
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw Exception('Xác thực Firebase quá thời gian. Vui lòng thử lại!'),
+          );
 
       if (userCredential.additionalUserInfo?.isNewUser == true) {
         await FirestoreRepository().createUserProfile(
@@ -125,6 +133,10 @@ class AuthService extends ChangeNotifier {
       _setError(parseAuthError(e));
       developer.log('Google sign in failed', error: e, name: 'AuthService');
       return false;
+    } on TimeoutException catch (e) {
+      _setError(e.toString());
+      developer.log('Google sign in timeout', error: e, name: 'AuthService');
+      return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
       developer.log('Google sign in failed', error: e, name: 'AuthService');
@@ -138,11 +150,18 @@ class AuthService extends ChangeNotifier {
       await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
       );
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(parseAuthError(e));
       developer.log('Email sign in failed', error: e, name: 'AuthService');
+      return false;
+    } on TimeoutException catch (e) {
+      _setError(e.toString());
+      developer.log('Email sign in timeout', error: e, name: 'AuthService');
       return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
@@ -158,6 +177,9 @@ class AuthService extends ChangeNotifier {
       final result = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
       );
 
       await result.user?.updateDisplayName(name);
@@ -177,6 +199,10 @@ class AuthService extends ChangeNotifier {
       _setError(parseAuthError(e));
       developer.log('Register failed', error: e, name: 'AuthService');
       return false;
+    } on TimeoutException catch (e) {
+      _setError(e.toString());
+      developer.log('Register timeout', error: e, name: 'AuthService');
+      return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
       developer.log('Register failed', error: e, name: 'AuthService');
@@ -187,11 +213,18 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInAsLocal() async {
     try {
       _setLoading(true);
-      await _auth.signInAnonymously();
+      await _auth.signInAnonymously().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Kiểm tra Internet và thử lại!'),
+      );
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(parseAuthError(e));
       developer.log('Anonymous sign in failed', error: e, name: 'AuthService');
+      return false;
+    } on TimeoutException catch (e) {
+      _setError(e.toString());
+      developer.log('Anonymous sign in timeout', error: e, name: 'AuthService');
       return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');

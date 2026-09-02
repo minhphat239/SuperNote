@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="4dp"
+    android:paddingHorizontal="6dp"
+    android:layout_marginBottom="3dp"
+    android:background="@drawable/widget_task_item_bg">
+
+    <!-- Category Indicator -->
+    <View
+        android:id="@+id/task_category_bar"
+        android:layout_width="3dp"
+        android:layout_height="20dp"
+        android:background="#FF00F5FF" />
+
+    <!-- Task Content -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="8dp">
+
+        <TextView
+            android:id="@+id/task_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Task title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/task_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="08:00"
+            android:textColor="#60FFFFFF"
+            android:textSize="10sp"
+            android:layout_marginTop="1dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Checkbox -->
+    <ImageView
+        android:id="@+id/task_checkbox"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/widget_checkbox_unchecked"
+        android:layout_marginStart="6dp" />
+
+</LinearLayout>

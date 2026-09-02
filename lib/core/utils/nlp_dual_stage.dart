@@ -23,6 +23,10 @@ class DualStageResult {
   final DateTime? stage2Time;
   final String stage2Label;
 
+  // Extra fields from AI
+  final int? preReminderOffset;
+  final String? description;
+
   const DualStageResult({
     required this.title,
     required this.intent,
@@ -33,6 +37,8 @@ class DualStageResult {
     this.stage1Label = '',
     this.stage2Time,
     this.stage2Label = '',
+    this.preReminderOffset,
+    this.description,
   });
 
   bool get hasTime => targetTime != null;
