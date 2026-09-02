@@ -88,7 +88,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) Navigator.pop(context, false);
+                        if (shouldPop && context.mounted) Navigator.pop(context, false);
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -105,7 +105,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       color: AppColors.textSecondary,
                       onPressed: () async {
                         final shouldPop = await _onWillPop();
-                        if (shouldPop && mounted) Navigator.pop(context, false);
+        if (shouldPop && context.mounted) Navigator.pop(context, false);
                       },
                     ),
                     const Spacer(),

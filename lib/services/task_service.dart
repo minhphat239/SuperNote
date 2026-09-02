@@ -26,7 +26,7 @@ class TaskService {
   final HomeWidgetService _homeWidgetService = HomeWidgetService();
   String? _currentUserId;
 
-  TaskService({AuthService? authService}) : _authService = authService;
+  TaskService({this._authService});
 
   String get _tasksKey => '$_prefix${_currentUserId ?? "guest"}';
 

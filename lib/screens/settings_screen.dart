@@ -15,6 +15,7 @@ import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 import 'past_tasks_screen.dart';
 import 'stats_screen.dart';
+import '../shared/widgets/cyberpunk_background.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AuthService authService;
@@ -156,7 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PastTasksScreen(taskService: widget.taskService),
+                          builder: (_) => CyberpunkBackground(
+                            child: PastTasksScreen(taskService: widget.taskService),
+                          ),
                         ),
                       );
                     },
@@ -176,7 +179,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => StatsScreen(taskService: widget.taskService),
+                          builder: (_) => CyberpunkBackground(
+                            child: StatsScreen(taskService: widget.taskService),
+                          ),
                         ),
                       );
                     },

@@ -764,7 +764,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         onTap: () async {
                           await widget.taskService.updateTask(
                             widget.task.id, preReminderOffset: null);
-                          if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                          if (mounted) setState(() {});
+                          if (ctx.mounted) Navigator.pop(ctx);
                         },
                         child: Text(AppLocalizations.of(context)!.delete,
                             style: TextStyle(fontSize: 13, color: AppColors.error)),
@@ -778,7 +779,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     onTap: () async {
                       await widget.taskService.updateTask(
                         widget.task.id, preReminderOffset: offsets[i]);
-                      if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                      if (mounted) setState(() {});
+                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -854,7 +856,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     onTap: () async {
                       await widget.taskService.updateTask(
                         widget.task.id, category: cat);
-                      if (mounted) { setState(() {}); Navigator.pop(ctx); }
+                      if (mounted) setState(() {});
+                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -937,7 +940,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       final updated = [...widget.task.attachments, ...newPaths];
                       await widget.taskService.updateTask(widget.task.id, attachments: updated);
                       if (mounted) setState(() {});
-                      Navigator.pop(ctx);
+                      if (ctx.mounted) Navigator.pop(ctx);
                     }
                   },
                   child: Container(
@@ -1003,7 +1006,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               final updated = List<String>.from(files)..removeAt(idx);
                               await widget.taskService.updateTask(widget.task.id, attachments: updated);
                               if (mounted) setState(() {});
-                              Navigator.pop(ctx);
+                              if (ctx.mounted) Navigator.pop(ctx);
                             },
                             child: Icon(Icons.close_rounded, size: 16, color: AppColors.error),
                           ),

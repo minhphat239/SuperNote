@@ -867,7 +867,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _dueTime = DateTime(2000, 1, 1, picked.hour, picked.minute);
       });

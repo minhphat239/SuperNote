@@ -9,7 +9,7 @@ class StorageService {
   SharedPreferences? _prefs;
   String? _currentUserId;
 
-  StorageService({AuthService? authService}) : _authService = authService;
+  StorageService({this._authService});
 
   String get _notesKey => '$_prefix${_currentUserId ?? "guest"}';
 

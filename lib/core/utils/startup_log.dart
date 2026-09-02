@@ -83,65 +83,85 @@ class StartupLog {
 
 /// Installs global error handlers that surface any uncaught error:
 /// - writes it to the startup log file
-/// - shows a full-screen overlay with the error text so the user can
-///   screenshot it (works even on release builds, no adb required).
+/// - records it in [crashMessage] so the root widget can render it on
+///   screen (safe during build phase — no Navigator/Overlay needed).
+final ValueNotifier<String?> crashMessage = ValueNotifier<String?>(null);
+
 void installGlobalErrorHandlers() {
   FlutterError.onError = (details) {
+    final msg = '${details.exception}\n\n${details.stack}';
     StartupLog.logCrash(details.exception, details.stack);
-    _showErrorOverlay('${details.exception}\n\n${details.stack}');
+    if (crashMessage.value == null) {
+      // Defer: setting it during build phase would trigger
+      // "markNeedsBuild called during build" and hide the real error.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        crashMessage.value = msg;
+      });
+    }
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
+    final msg = '$error\n\n$stack';
     StartupLog.logCrash(error, stack);
-    _showErrorOverlay('$error\n\n$stack');
+    if (crashMessage.value == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        crashMessage.value = msg;
+      });
+    }
     return true;
   };
 }
 
-void _showErrorOverlay(String message) {
-  final context = _errorContext;
-  if (context == null || !context.mounted) return;
-  _showErrorOverlayFor(context, message);
-}
+/// Renders the captured crash message (if any). Safe to use at any time.
+class CrashOverlay extends StatelessWidget {
+  const CrashOverlay({super.key});
 
-void _showErrorOverlayFor(BuildContext context, String message) {
-  showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => Dialog(
-      backgroundColor: const Color(0xFFFFE0E0),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('⚠️ CRASH',
-                style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18)),
-            const SizedBox(height: 12),
-            SelectableText(
-              message,
-              style: const TextStyle(
-                  color: Colors.black, fontSize: 13, fontFamily: 'monospace'),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close', style: TextStyle(color: Colors.red)),
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: crashMessage,
+      builder: (context, message, _) {
+        if (message == null) return const SizedBox.shrink();
+        return Material(
+          color: const Color(0xE61E1B1B),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('⚠️ CRASH',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18)),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        message,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => crashMessage.value = null,
+                      child: const Text('Close',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-    ),
-  );
+          ),
+        );
+      },
+    );
+  }
 }
-
-/// Set by the root widget once its context exists.
-BuildContext? _errorContext;
-set errorContext(BuildContext? value) => _errorContext = value;

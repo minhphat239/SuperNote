@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadNotes() async {
     final notes = await widget.noteService.getAllNotes();
+    if (!mounted) return;
     setState(() {
       _notes = notes;
       _isLoading = false;
@@ -69,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final update = await UpdateService.checkForUpdate();
 
+    if (!mounted) return;
     setState(() {
       _updateInfo = update;
       _isCheckingUpdate = false;
@@ -90,10 +92,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _updateInfo!.downloadUrl,
         _updateInfo!.assetName,
         (progress) {
-          setState(() => _downloadProgress = progress);
+          if (mounted) setState(() => _downloadProgress = progress);
         },
       );
 
+      if (!mounted) return;
       setState(() {
         _isDownloading = false;
         _updateSuccess = success;
@@ -105,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _skipVersion() async {
     if (_updateInfo != null) {
       await UpdateService.skipVersion(_updateInfo!.version);
+      if (!mounted) return;
       setState(() => _updateInfo = null);
     }
   }
@@ -138,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-    if (result == true) {
+    if (result == true && mounted) {
       _loadNotes();
       widget.syncService.sync();
     }
@@ -162,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirm == true) {
       await widget.noteService.deleteNote(note.noteId);
+      if (!mounted) return;
       _loadNotes();
       widget.syncService.sync();
     }

@@ -57,7 +57,7 @@ class PulseGlow extends StatefulWidget {
   final Color? color;
   final double radius;
 
-  PulseGlow({
+  const PulseGlow({
     super.key,
     required this.child,
     this.color,

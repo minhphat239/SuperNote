@@ -252,7 +252,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        SizedBox(
           width: 56,
           height: 56,
           child: Stack(

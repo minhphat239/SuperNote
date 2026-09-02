@@ -120,7 +120,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         );
       },
     );
-    if (picked != null) setState(() => _dueDate = picked);
+    if (picked != null && mounted) setState(() => _dueDate = picked);
   }
 
   // ===== TIME PICKER =====
@@ -139,7 +139,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         );
       },
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _dueTime = DateTime(2000, 1, 1, picked.hour, picked.minute));
     }
   }
@@ -557,7 +557,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         );
       },
     );
-    if (picked != null) setState(() => _repeatEndDate = picked);
+    if (picked != null && mounted) setState(() => _repeatEndDate = picked);
   }
 
   // ===== PRE-REMINDER PICKER =====

@@ -1184,7 +1184,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
                     child: TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: 1.0),
                       duration: Duration(milliseconds: 600 + (i * 200)),
-                      builder: (_, value, __) {
+                      builder: (_, value, _) {
                         return Opacity(
                           opacity: value,
                           child: Container(

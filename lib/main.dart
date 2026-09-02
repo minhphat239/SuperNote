@@ -84,8 +84,21 @@ class _CrashAwareApp extends StatefulWidget {
 class _CrashAwareAppState extends State<_CrashAwareApp> {
   @override
   Widget build(BuildContext context) {
-    errorContext = context;
-    return const _ServiceBootstrap();
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'SuperNote',
+      theme: AppTheme.dark,
+      // CrashOverlay lives OUTSIDE the child subtree so it can render even
+      // when the app tree fails to build.
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [
+          ?child,
+          const CrashOverlay(),
+        ],
+      ),
+      home: const _ServiceBootstrap(),
+    );
   }
 }
 

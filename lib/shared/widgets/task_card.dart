@@ -15,7 +15,7 @@ class TaskCard extends StatelessWidget {
   final VoidCallback? onSnooze;
   final Widget? trailing;
 
-  TaskCard({
+  const TaskCard({
     super.key,
     required this.title,
     this.subtitle = '',
