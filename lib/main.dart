@@ -70,9 +70,14 @@ void main() async {
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 10));
+  } catch (e) {
+    // Never block startup on Firebase — app continues in local-only mode.
+    debugPrint('Firebase init skipped/failed: $e');
+  }
   await initializeDateFormatting('vi', null);
 
   // window_manager is NOT supported on Android/iOS — calling it there

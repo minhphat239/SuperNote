@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -15,13 +16,21 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  // Full-screen BackdropFilter + continuous repaint is very expensive on
+  // mobile GPUs and can cause ANR on low-end devices. Keep it static there.
+  bool get _isMobile =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
-    )..repeat();
+    );
+    if (!_isMobile) _controller.repeat();
   }
 
   @override
@@ -32,6 +41,28 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
 
   @override
   Widget build(BuildContext context) {
+    if (_isMobile) {
+      return Container(
+        color: AppColors.background,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: _OrbPainter(
+                  progress: 0.25,
+                  orbColors: AppColors.orbColors,
+                  orbOpacity: AppColors.orbOpacity,
+                ),
+                size: Size.infinite,
+              ),
+            ),
+            widget.child,
+          ],
+        ),
+      );
+    }
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
