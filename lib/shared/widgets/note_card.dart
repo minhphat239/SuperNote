@@ -31,9 +31,9 @@ class NoteCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 1)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 1)),
         ],
       ),
       child: Material(
@@ -44,8 +44,8 @@ class NoteCard extends StatelessWidget {
           onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(12),
           splashColor: AppColors.splash,
-          highlightColor: Colors.white.withOpacity(0.03),
-          hoverColor: Colors.white.withOpacity(0.03),
+          highlightColor: Colors.white.withValues(alpha: 0.03),
+          hoverColor: Colors.white.withValues(alpha: 0.03),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
@@ -60,7 +60,7 @@ class NoteCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: accentColor,
                       borderRadius: BorderRadius.circular(2),
-                      boxShadow: [BoxShadow(color: accentColor!.withOpacity(0.3), blurRadius: 4, spreadRadius: -1)],
+                      boxShadow: [BoxShadow(color: accentColor!.withValues(alpha: 0.3), blurRadius: 4, spreadRadius: -1)],
                     ),
                   ),
                 ],
@@ -90,7 +90,7 @@ class NoteCard extends StatelessWidget {
                           content,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFA0AEC0), height: 1.35),
+                          style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
                         ),
                       ],
 
@@ -103,17 +103,17 @@ class NoteCard extends StatelessWidget {
                               margin: const EdgeInsets.only(right: 4),
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: _getTagColor(tag).withOpacity(0.1),
+                                color: _getTagColor(tag).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(AppRadius.full),
-                                border: Border.all(color: _getTagColor(tag).withOpacity(0.2)),
+                                border: Border.all(color: _getTagColor(tag).withValues(alpha: 0.2)),
                               ),
                               child: Text('#$tag', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: _getTagColor(tag))),
                             )),
                             const SizedBox(width: 4),
                           ],
-                          Icon(Icons.access_time_rounded, size: 10, color: AppColors.textMuted.withOpacity(0.5)),
+                          Icon(Icons.access_time_rounded, size: 10, color: AppColors.textMuted.withValues(alpha: 0.5)),
                           const SizedBox(width: 3),
-                          Text(timeLabel, style: TextStyle(fontSize: 10, color: AppColors.textMuted.withOpacity(0.6))),
+                          Text(timeLabel, style: TextStyle(fontSize: 10, color: AppColors.textMuted.withValues(alpha: 0.6))),
                         ],
                       ),
                     ],
@@ -121,7 +121,7 @@ class NoteCard extends StatelessWidget {
                 ),
 
                 // Chevron
-                Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted.withOpacity(0.3)),
+                Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted.withValues(alpha: 0.3)),
               ],
             ),
           ),

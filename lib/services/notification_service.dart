@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
 import '../models/task.dart';
 
 class NotificationService {
@@ -57,7 +58,7 @@ class NotificationService {
       _initialized = true;
     } catch (e) {
       // Notifications must not prevent the task screen from opening.
-      debugPrint('Notification initialization failed: $e');
+      developer.log('Notification initialization failed', error: e, name: 'NotificationService');
     }
   }
 
@@ -216,7 +217,7 @@ class NotificationService {
           payload: payload,
         );
       } catch (fallbackError) {
-        debugPrint('Notification scheduling failed: $fallbackError');
+        developer.log('Notification scheduling failed', error: fallbackError, name: 'NotificationService');
       }
     }
   }
@@ -306,7 +307,7 @@ class NotificationService {
   }
 
   Future<tz.TZDateTime?> _shiftFromQuietHours(tz.TZDateTime dt) async {
-    final (start, end) = await getQuietHours();
+    await getQuietHours();
     final shifted = dt.add(const Duration(hours: 1));
     return shifted;
   }

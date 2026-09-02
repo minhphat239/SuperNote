@@ -5,7 +5,7 @@ import 'glass_widgets.dart';
 class TaskCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final Color categoryColor;
+  final Color? categoryColor;
   final bool isDone;
   final bool isOverdue;
   final bool hasNote;
@@ -15,11 +15,11 @@ class TaskCard extends StatelessWidget {
   final VoidCallback? onSnooze;
   final Widget? trailing;
 
-  const TaskCard({
+  TaskCard({
     super.key,
     required this.title,
     this.subtitle = '',
-    this.categoryColor = AppColors.primary,
+    this.categoryColor,
     this.isDone = false,
     this.isOverdue = false,
     this.hasNote = false,
@@ -36,31 +36,37 @@ class TaskCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           splashColor: AppColors.splash,
           highlightColor: Colors.transparent,
           child: Padding(
             padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                // Bounce check
-                BounceCheck(
-                  isChecked: isDone,
-                  color: AppColors.success,
-                  size: 22,
-                  onTap: onToggle,
+                // Bounce check — 44x44 touch target
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: BounceCheck(
+                      isChecked: isDone,
+                      color: AppColors.success,
+                      size: 24,
+                      onTap: onToggle,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
 
                 // Title + subtitle
                 Expanded(
@@ -93,7 +99,7 @@ class TaskCard extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 11,
                               color:
-                                  AppColors.textMuted.withOpacity(0.7),
+                                  AppColors.textMuted.withValues(alpha: 0.7),
                               height: 1.3),
                         ),
                       ],
@@ -107,17 +113,17 @@ class TaskCard extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 6),
                     child: Icon(Icons.note_alt_outlined,
                         size: 14,
-                        color: AppColors.primary.withOpacity(0.6)),
+                        color: AppColors.primary.withValues(alpha: 0.6)),
                   ),
 
                 // More menu
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert_rounded,
                       size: 18,
-                      color: AppColors.textMuted.withOpacity(0.5)),
+                      color: AppColors.textMuted.withValues(alpha: 0.5)),
                   shape: RoundedRectangleBorder(
                       borderRadius:
-                          BorderRadius.circular(AppRadius.md)),
+                          BorderRadius.circular(AppRadius.lg)),
                   color: AppColors.surfaceLight,
                   onSelected: (v) {
                     if (v == 'snooze') onSnooze?.call();

@@ -16,12 +16,12 @@ class UpdateBanner extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.primaryLight.withOpacity(0.05),
+            AppColors.primary.withValues(alpha: 0.1),
+            AppColors.primaryLight.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -36,19 +36,19 @@ class UpdateBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'v$version is available',
+              'Phiên bản v$version đã sẵn sàng',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
           if (onUpdate != null)
             TextButton(
               onPressed: onUpdate,
-              child: const Text('UPDATE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              child: Text('CẬP NHẬT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
             ),
           if (onDismiss != null)
             GestureDetector(
               onTap: onDismiss,
-              child: Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted.withOpacity(0.6)),
+              child: Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted.withValues(alpha: 0.6)),
             ),
         ],
       ),

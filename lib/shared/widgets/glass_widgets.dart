@@ -36,10 +36,10 @@ class GlassContainer extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: (tintColor ?? AppColors.surface).withOpacity(opacity),
+              color: (tintColor ?? AppColors.surface).withValues(alpha: opacity),
               borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.lg),
               border: border ?? Border.all(
-                color: AppColors.borderLight.withOpacity(0.3),
+                color: AppColors.borderLight.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -54,13 +54,13 @@ class GlassContainer extends StatelessWidget {
 // ===== PULSE GLOW (for FAB) =====
 class PulseGlow extends StatefulWidget {
   final Widget child;
-  final Color color;
+  final Color? color;
   final double radius;
 
-  const PulseGlow({
+  PulseGlow({
     super.key,
     required this.child,
-    this.color = AppColors.primary,
+    this.color,
     this.radius = 30,
   });
 
@@ -98,7 +98,7 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(0.3 * _anim.value),
+                color: (widget.color ?? AppColors.primary).withValues(alpha: 0.3 * _anim.value),
                 blurRadius: widget.radius * _anim.value,
                 spreadRadius: 2,
               ),

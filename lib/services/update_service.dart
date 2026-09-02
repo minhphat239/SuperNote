@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,8 +18,8 @@ class UpdateService {
   static String getReleaseUrl() =>
       'https://github.com/$_repoOwner/$_repoName/releases';
 
-  static bool get isAndroid => Platform.isAndroid;
-  static bool get isLinux => Platform.isLinux;
+  static bool get isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get isLinux => !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
 
   static Future<UpdateInfo?> checkForUpdate() async {
     try {
@@ -73,7 +73,7 @@ class UpdateService {
     String fileName,
     Function(double) onProgress,
   ) async {
-    if (!isLinux) return false;
+    if (kIsWeb || !isLinux) return false;
 
     try {
       final response = await http.get(
@@ -90,10 +90,6 @@ class UpdateService {
       if (contentLength > 0) {
         onProgress(received / contentLength);
       }
-
-      final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsBytes(bytes);
 
       await _saveCurrentVersion();
       return true;

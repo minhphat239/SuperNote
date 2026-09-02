@@ -5,9 +5,8 @@ import '../models/update_info.dart';
 import '../services/note_service.dart';
 import '../services/sync_service.dart';
 import '../services/update_service.dart';
-import 'note_editor_screen.dart';
-import 'auth_screen.dart';
 import '../services/auth_service.dart';
+import 'note_editor_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final NoteService noteService;
@@ -199,14 +198,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.logout),
                     onPressed: () async {
                       await widget.authService.signOut();
-                      if (mounted) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AuthScreen(authService: widget.authService),
-                          ),
-                        );
-                      }
                     },
                   ),
                 ],

@@ -1,18 +1,25 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../core/theme/app_theme.dart';
-import '../services/notification_service.dart';
+import '../core/theme/glass_theme.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/gemini_service.dart';
+import '../services/theme_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AuthService authService;
   final GeminiService geminiService;
+  final ThemeService themeService;
 
   const SettingsScreen({
     super.key,
     required this.authService,
     required this.geminiService,
+    required this.themeService,
   });
 
   @override
@@ -29,12 +36,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _quietStart = 22;
   int _quietEnd = 7;
   bool _geminiConfigured = false;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _geminiConfigured = widget.geminiService.isConfigured;
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = info.version);
   }
 
   Future<void> _loadSettings() async {
@@ -50,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -63,8 +77,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 100),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // ===== THEME (top — most visual impact) =====
+                _buildSectionTitle('Giao diện'),
+                _buildThemeSelector(),
+                const SizedBox(height: AppSpacing.md),
+
+                // ===== NOTIFICATIONS (second — most used) =====
+                _buildSectionTitle('Thông báo'),
+                _buildCard([
+                  _buildSwitchTile(
+                    icon: Icons.notifications_rounded,
+                    iconColor: AppColors.primary,
+                    title: 'Âm thanh thông báo',
+                    subtitle: 'Phát âm thanh khi nhắc nhở',
+                    value: _notificationSound,
+                    onChanged: (v) => setState(() => _notificationSound = v),
+                  ),
+                  _buildDivider(),
+                  _buildSwitchTile(
+                    icon: Icons.vibration_rounded,
+                    iconColor: AppColors.orange,
+                    title: 'Rung',
+                    subtitle: 'Rung khi có nhắc nhở',
+                    value: _notificationVibration,
+                    onChanged: (v) => setState(() => _notificationVibration = v),
+                  ),
+                  _buildDivider(),
+                  _buildPickerTile(
+                    icon: Icons.timer_rounded,
+                    iconColor: AppColors.green,
+                    title: 'Nhắc nhở mặc định',
+                    subtitle: _formatPreReminder(_defaultPreReminder),
+                    onTap: _showPreReminderPicker,
+                  ),
+                  _buildDivider(),
+                  _buildPickerTile(
+                    icon: Icons.nightlight_round,
+                    iconColor: AppColors.purple,
+                    title: 'Giờ yên lặng',
+                    subtitle: '${_quietStart.toString().padLeft(2, '0')}:00 – ${_quietEnd.toString().padLeft(2, '0')}:00',
+                    onTap: _showQuietHoursPicker,
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.md),
+
                 // ===== ACCOUNT =====
-                _buildSectionTitle('Account'),
+                _buildSectionTitle('Tài khoản'),
                 _buildAccountCard(),
                 const SizedBox(height: AppSpacing.md),
 
@@ -73,58 +131,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildGeminiCard(),
                 const SizedBox(height: AppSpacing.md),
 
-                // ===== SYNC =====
-                _buildSectionTitle('Cloud Sync'),
-                _buildSyncCard(),
-                const SizedBox(height: AppSpacing.md),
-
-                // ===== NOTIFICATIONS =====
-                _buildSectionTitle('Notifications'),
-                _buildCard([
-                  _buildSwitchTile(
-                    icon: Icons.notifications_rounded,
-                    iconColor: AppColors.primary,
-                    title: 'Notification Sound',
-                    subtitle: 'Play sound for reminders',
-                    value: _notificationSound,
-                    onChanged: (v) => setState(() => _notificationSound = v),
-                  ),
-                  _buildDivider(),
-                  _buildSwitchTile(
-                    icon: Icons.vibration_rounded,
-                    iconColor: AppColors.orange,
-                    title: 'Vibration',
-                    subtitle: 'Vibrate for reminders',
-                    value: _notificationVibration,
-                    onChanged: (v) => setState(() => _notificationVibration = v),
-                  ),
-                  _buildDivider(),
-                  _buildPickerTile(
-                    icon: Icons.timer_rounded,
-                    iconColor: AppColors.green,
-                    title: 'Default Pre-reminder',
-                    subtitle: _formatPreReminder(_defaultPreReminder),
-                    onTap: _showPreReminderPicker,
-                  ),
-                  _buildDivider(),
-                  _buildPickerTile(
-                    icon: Icons.nightlight_round,
-                    iconColor: AppColors.purple,
-                    title: 'Quiet Hours',
-                    subtitle: '${_quietStart.toString().padLeft(2, '0')}:00 – ${_quietEnd.toString().padLeft(2, '0')}:00',
-                    onTap: _showQuietHoursPicker,
-                  ),
-                ]),
-                const SizedBox(height: AppSpacing.md),
-
                 // ===== TEST =====
                 _buildSectionTitle('Test'),
                 _buildCard([
                   _buildTapTile(
                     icon: Icons.notifications_active_rounded,
                     iconColor: AppColors.primary,
-                    title: 'Send Test Notification',
-                    subtitle: 'Verify notifications are working',
+                    title: 'Gửi thông báo test',
+                    subtitle: 'Kiểm tra thông báo hoạt động',
                     onTap: _sendTestNotification,
                   ),
                   _buildDivider(),
@@ -132,20 +146,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.send_rounded,
                     iconColor: AppColors.teal,
                     title: 'Test Gemini API',
-                    subtitle: _geminiConfigured ? 'API configured' : 'API key not set',
+                    subtitle: _geminiConfigured ? 'Đã cấu hình' : 'Chưa có API key',
                     onTap: _testGemini,
                   ),
                 ]),
                 const SizedBox(height: AppSpacing.md),
 
                 // ===== ABOUT =====
-                _buildSectionTitle('About'),
+                _buildSectionTitle('Thông tin'),
                 _buildCard([
                   _buildTapTile(
                     icon: Icons.info_outline_rounded,
                     iconColor: AppColors.textSecondary,
                     title: 'SuperNote',
-                    subtitle: 'v3.1.0 — Smart reminder app for students',
+                    subtitle: 'v$_appVersion — Smart reminder app for students',
                     onTap: () {},
                   ),
                 ]),
@@ -167,21 +181,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ListTile(
           leading: CircleAvatar(
             radius: 20,
-            backgroundColor: AppColors.primary.withOpacity(0.2),
-            backgroundImage: user.photoURL != null ? NetworkImage(user.photoURL!) : null,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+            backgroundImage:
+                user.photoURL != null ? NetworkImage(user.photoURL!) : null,
             child: user.photoURL == null
                 ? Text(
-                    (user.name ?? user.email ?? '?')[0].toUpperCase(),
-                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+                    (user.displayName ?? user.email ?? '?')[0].toUpperCase(),
+                    style: TextStyle(
+                        color: AppColors.primary, fontWeight: FontWeight.w700),
                   )
                 : null,
           ),
           title: Text(
-            user.name ?? 'User',
+            user.displayName ?? (user.isAnonymous ? 'Khách' : 'User'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            user.email ?? '',
+            user.isAnonymous ? 'Không đồng bộ' : (user.email ?? ''),
             style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
         ),
@@ -189,33 +205,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildTapTile(
           icon: Icons.logout_rounded,
           iconColor: AppColors.error,
-          title: 'Sign Out',
-          subtitle: 'Sign out from your account',
+          title: 'Đăng xuất',
+          subtitle: 'Thoát khỏi tài khoản hiện tại',
           onTap: _signOut,
         ),
       ] else ...[
         _buildTapTile(
-          icon: Icons.g_mobiledata_rounded,
-          iconColor: const Color(0xFF4285F4),
-          title: 'Sign in with Google',
-          subtitle: 'Sync notes & tasks to cloud',
-          onTap: _signInWithGoogle,
-        ),
-        _buildDivider(),
-        _buildTapTile(
-          icon: Icons.mail_outline_rounded,
+          icon: Icons.login_rounded,
           iconColor: AppColors.primary,
-          title: 'Sign in with Email',
-          subtitle: 'Use email & password',
-          onTap: _signInWithEmail,
-        ),
-        _buildDivider(),
-        _buildTapTile(
-          icon: Icons.phone_android_rounded,
-          iconColor: AppColors.green,
-          title: 'Use Locally',
-          subtitle: 'No cloud sync, data on this device only',
-          onTap: _signInLocal,
+          title: 'Chưa đăng nhập',
+          subtitle: 'Mở lại màn hình đăng nhập',
+          onTap: _signIn,
         ),
       ],
     ]);
@@ -251,24 +251,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: TextField(
                     controller: _geminiKeyController,
                     obscureText: true,
-                    style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+                    style: const TextStyle(fontSize: 13, fontFamily: 'monospace', color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Paste your Gemini API key...',
-                      hintStyle: TextStyle(color: AppColors.textMuted.withOpacity(0.5)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                       filled: true,
-                      fillColor: AppColors.background,
+                      fillColor: Colors.black.withValues(alpha: 0.3),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: Colors.white24),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderSide: BorderSide(color: Colors.white24),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.sm),
-                        borderSide: const BorderSide(color: AppColors.primary),
+                        borderSide: BorderSide(color: AppColors.primary),
                       ),
                     ),
                   ),
@@ -278,17 +278,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () {
                     final data = ClipboardData(text: _geminiKeyController.text);
                     Clipboard.setData(data);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied!')),
-                    );
+                    _showSnack('Copied!');
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                     ),
-                    child: const Icon(Icons.copy_rounded, size: 16, color: AppColors.primary),
+                    child: const Icon(Icons.copy_rounded, size: 16, color: Colors.white54),
                   ),
                 ),
               ],
@@ -297,25 +296,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               children: [
                 Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _saveGeminiKey,
-                    icon: const Icon(Icons.save_rounded, size: 16),
-                    label: const Text('Save Key', style: TextStyle(fontSize: 13)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.8),
+                          AppColors.magentaPink.withValues(alpha: 0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _saveGeminiKey,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.save_rounded, size: 16, color: Colors.white),
+                              SizedBox(width: 6),
+                              Text('Save Key',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _testGemini,
-                  icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                  label: const Text('Test', style: TextStyle(fontSize: 13)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.green,
-                    side: const BorderSide(color: AppColors.green),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _testGemini,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_arrow_rounded, size: 16, color: Colors.white54),
+                            SizedBox(width: 4),
+                            Text('Test',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white54)),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -323,7 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
             Text(
               'Get your API key from aistudio.google.com/apikey',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(0.6)),
+              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3)),
             ),
           ],
         ),
@@ -331,140 +367,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ]);
   }
 
-  // ===== SYNC CARD =====
-  Widget _buildSyncCard() {
-    final isLoggedIn = widget.authService.isLoggedIn;
-    return _buildCard([
-      _buildTapTile(
-        icon: Icons.cloud_upload_rounded,
-        iconColor: isLoggedIn ? AppColors.green : AppColors.textMuted,
-        title: isLoggedIn ? 'Sync Now' : 'Sign in to enable sync',
-        subtitle: isLoggedIn ? 'Upload local data to cloud' : 'Use Account section to sign in',
-        onTap: isLoggedIn ? _syncNow : () {},
-      ),
-      _buildDivider(),
-      _buildTapTile(
-        icon: Icons.cloud_download_rounded,
-        iconColor: isLoggedIn ? AppColors.teal : AppColors.textMuted,
-        title: isLoggedIn ? 'Pull from Cloud' : 'Sign in to enable pull',
-        subtitle: isLoggedIn ? 'Download cloud data to this device' : 'Use Account section to sign in',
-        onTap: isLoggedIn ? _pullFromCloud : () {},
-      ),
-    ]);
-  }
-
-  // ===== ACTIONS =====
-  void _signInWithGoogle() async {
-    final success = await widget.authService.signInWithGoogle();
-    if (!mounted) return;
+  // ===== SNACKBAR HELPER =====
+  void _showSnack(String text, {Color? backgroundColor, Duration? duration}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success ? 'Signed in with Google!' : 'Sign-in cancelled'),
-      backgroundColor: success ? AppColors.green : AppColors.error,
+      content: Text(text),
+      backgroundColor: backgroundColor,
+      duration: duration ?? const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
     ));
   }
 
-  void _signInWithEmail() async {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Sign in with Email'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
-              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
-              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await widget.authService.registerWithEmail(
-                emailCtrl.text, passCtrl.text, nameCtrl.text,
-              );
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(success ? 'Registered!' : 'Failed'),
-                backgroundColor: success ? AppColors.green : AppColors.error,
-              ));
-            },
-            child: const Text('Register & Sign In'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _signInLocal() async {
-    await widget.authService.signInAsLocal();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Using local mode — no cloud sync')),
-    );
-  }
-
+  // ===== AUTH ACTIONS =====
   void _signOut() async {
-    await widget.authService.signOut();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Signed out')),
-    );
+    try {
+      // Firebase signOut is essential — Google signOut is optional
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi đăng xuất: $e')),
+        );
+      }
+    }
   }
 
-  void _saveGeminiKey() {
+  void _signIn() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
+  // ===== ACTIONS =====
+  void _saveGeminiKey() async {
     final key = _geminiKeyController.text.trim();
     if (key.isNotEmpty) {
-      widget.geminiService.setApiKey(key);
+      await widget.geminiService.setApiKey(key);
+      if (!mounted) return;
       setState(() => _geminiConfigured = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API key saved!'), backgroundColor: AppColors.green),
-      );
+      _showSnack('API key saved!', backgroundColor: AppColors.green);
     }
   }
 
   void _testGemini() async {
     final result = await widget.geminiService.generate('Say hello in Vietnamese');
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(result ?? 'No response'),
-      duration: const Duration(seconds: 3),
-    ));
-  }
-
-  void _syncNow() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Syncing...'), duration: Duration(seconds: 2)),
-    );
-  }
-
-  void _pullFromCloud() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pulling from cloud...'), duration: Duration(seconds: 2)),
-    );
+    _showSnack(result ?? 'No response', duration: const Duration(seconds: 3));
   }
 
   void _sendTestNotification() async {
     await _notifService.sendTestNotification();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Row(children: [
-        Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-        SizedBox(width: 8),
-        Text('Test notification sent!', style: TextStyle(fontWeight: FontWeight.w500)),
-      ]),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-      duration: const Duration(seconds: 2),
-    ));
+    _showSnack('Test notification sent!');
   }
 
   void _showPreReminderPicker() {
@@ -479,8 +432,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(width: 40, height: 4, margin: const EdgeInsets.only(top: 12),
               decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
             const Padding(padding: EdgeInsets.all(16), child: Text('Default Pre-reminder', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-            ...options.map((m) => RadioListTile<int>(
-              value: m,
+            ...options.map((m) => RadioGroup<int>(
               groupValue: _defaultPreReminder,
               onChanged: (v) {
                 if (v != null) {
@@ -489,8 +441,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(context);
                 }
               },
-              title: Text(_formatPreReminder(m)),
-              activeColor: AppColors.primary,
+              child: RadioListTile<int>(
+                value: m,
+                title: Text(_formatPreReminder(m)),
+                activeColor: AppColors.primary,
+              ),
             )),
             const SizedBox(height: 8),
           ],
@@ -583,23 +538,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.5)),
+      child: Text(title.toUpperCase(),
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white54,
+              letterSpacing: 0.8)),
     );
   }
 
   Widget _buildCard(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: AppShadow.sm,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          ),
+          child: Column(children: children),
+        ),
       ),
-      child: Column(children: children),
     );
   }
 
-  Widget _buildDivider() => const Divider(height: 1, indent: 56, color: AppColors.border);
+  Widget _buildDivider() => Divider(height: 1, indent: 56, color: Colors.white.withValues(alpha: 0.08));
 
   Widget _buildSwitchTile({
     required IconData icon,
@@ -609,12 +577,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required Function(bool) onChanged,
   }) {
-    return ListTile(
-      leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
-        child: Icon(icon, size: 20, color: iconColor)),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      trailing: Switch(value: value, onChanged: onChanged, activeColor: AppColors.primary),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
+          child: Icon(icon, size: 20, color: iconColor)),
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        trailing: Switch(value: value, onChanged: onChanged, activeThumbColor: AppColors.primary),
+      ),
     );
   }
 
@@ -625,13 +596,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
-        child: Icon(icon, size: 20, color: iconColor)),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
-      onTap: onTap,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
+          child: Icon(icon, size: 20, color: iconColor)),
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+        onTap: onTap,
+      ),
     );
   }
 
@@ -642,13 +616,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
-        child: Icon(icon, size: 20, color: iconColor)),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
-      onTap: onTap,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
+          child: Icon(icon, size: 20, color: iconColor)),
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+        onTap: onTap,
+      ),
     );
+  }
+
+  // ===== THEME SELECTOR =====
+  Widget _buildThemeSelector() {
+    final current = widget.themeService.current.id;
+    return _buildCard([
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.palette_rounded, size: 20, color: AppColors.primary),
+                const SizedBox(width: 10),
+                const Text(
+                  'Chọn bộ màu giao diện',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: GlassTheme.all.map((theme) {
+                final isSelected = theme.id == current;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => widget.themeService.setTheme(theme.id),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? theme.accent.withValues(alpha: 0.15)
+                            : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: isSelected
+                              ? theme.accent
+                              : AppColors.border,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Color dot
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [theme.borderStart, theme.borderEnd],
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: isSelected
+                                  ? [BoxShadow(
+                                      color: theme.accent.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    )]
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${theme.emoji} ${theme.name}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? theme.accent : AppColors.textMuted,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    ]);
   }
 }

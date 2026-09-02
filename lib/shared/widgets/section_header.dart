@@ -20,7 +20,7 @@ class SectionHeader extends StatelessWidget {
               color: color,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: color.withOpacity(0.4), blurRadius: 6, spreadRadius: -1),
+                BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 6, spreadRadius: -1),
               ],
             ),
           ),
@@ -38,7 +38,7 @@ class SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
             child: Text(

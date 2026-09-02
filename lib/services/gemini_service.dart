@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ===== GEMINI SERVICE =====
 class GeminiService {
@@ -8,15 +9,31 @@ class GeminiService {
   GeminiService._internal();
 
   static const String _defaultApiKey = 'YOUR_GEMINI_API_KEY';
+  static const String _apiKeyPref = 'gemini_api_key';
   String _apiKey = _defaultApiKey;
-  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  static const String _modelName = 'gemini-3.1-flash-lite';
+  static String get _baseUrl =>
+      'https://generativelanguage.googleapis.com/v1beta/models/$_modelName:generateContent';
 
   bool get isConfigured => _apiKey != _defaultApiKey;
 
-  void setApiKey(String key) => _apiKey = key;
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _apiKey = prefs.getString(_apiKeyPref) ?? _defaultApiKey;
+  }
+
+  Future<void> setApiKey(String key) async {
+    _apiKey = key;
+    final prefs = await SharedPreferences.getInstance();
+    if (key == _defaultApiKey || key.isEmpty) {
+      await prefs.remove(_apiKeyPref);
+    } else {
+      await prefs.setString(_apiKeyPref, key);
+    }
+  }
 
   // ===== GENERATE CONTENT =====
-  Future<String?> generate(String prompt, {String? systemInstruction}) async {
+  Future<String?> generate(String prompt, {String? systemInstruction, int retryCount = 0}) async {
     if (!isConfigured) return _getMockResponse(prompt);
 
     try {
@@ -30,8 +47,6 @@ class GeminiService {
         ],
         'generationConfig': {
           'temperature': 0.7,
-          'topK': 40,
-          'topP': 0.95,
           'maxOutputTokens': 1024,
         },
       };
@@ -43,8 +58,11 @@ class GeminiService {
       }
 
       final response = await http.post(
-        Uri.parse('$_baseUrl?key=$_apiKey'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(_baseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': _apiKey,
+        },
         body: jsonEncode(body),
       );
 
@@ -56,10 +74,25 @@ class GeminiService {
           final parts = content['parts'] as List;
           return parts[0]['text'] as String;
         }
+        return 'Không nhận được phản hồi từ AI. Thử lại sau.';
+      } else if (response.statusCode == 503 && retryCount < 2) {
+        await Future.delayed(const Duration(seconds: 3));
+        return generate(prompt, systemInstruction: systemInstruction, retryCount: retryCount + 1);
+      } else {
+        final body = response.body;
+        if (response.statusCode == 400) {
+          return 'Sai tham số request. Chi tiết: $body';
+        } else if (response.statusCode == 403) {
+          return 'API key bị từ chối. Kiểm tra key có đúng và chưa hết quota không?';
+        } else if (response.statusCode == 404) {
+          return 'Model không tồn tại ($_modelName). Vui lòng cập nhật model trong code.';
+        } else if (response.statusCode == 429) {
+          return 'Đã gửi quá nhiều yêu cầu. Chờ một chút rồi thử lại.';
+        }
+        return 'Lỗi API (${response.statusCode}): $body';
       }
-      return null;
     } catch (e) {
-      return _getMockResponse(prompt);
+      return 'Lỗi kết nối: ${e.toString().contains('SocketException') ? 'Không có Internet' : e}';
     }
   }
 

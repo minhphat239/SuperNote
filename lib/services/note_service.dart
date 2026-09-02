@@ -1,16 +1,12 @@
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
 import 'storage_service.dart';
-import 'auth_service.dart';
 
 class NoteService {
   final StorageService _storage;
-  final AuthService _authService;
   final _uuid = const Uuid();
 
-  NoteService(this._storage, this._authService);
-
-  String? get _userId => _authService.userId;
+  NoteService(this._storage);
 
   Future<List<Note>> getAllNotes() async {
     return await _storage.getAllNotes();

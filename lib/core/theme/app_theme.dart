@@ -1,51 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'glass_theme.dart';
+
+// Global theme reference — updated by ThemeService
+GlassTheme _activeTheme = GlassTheme.cyberpunk;
 
 // ===== COLORS =====
 class AppColors {
   AppColors._();
 
-  // — Backgrounds —
-  static const Color background = Color(0xFF0E0F1A);
-  static const Color surface = Color(0xFF181A2A);
-  static const Color surfaceLight = Color(0xFF1E2035);
-  static const Color card = Color(0xFF181A2A);
-  static const Color cardElevated = Color(0xFF1E2035);
+  // — Dynamic backgrounds (read from active theme) —
+  static Color get background => _activeTheme.background;
+  static Color get surface => _activeTheme.surface;
+  static Color get surfaceLight => _activeTheme.surfaceLight;
+  static Color get card => _activeTheme.card;
+  static Color get cardElevated => _activeTheme.surfaceLight;
 
-  // — Text —
-  static const Color textPrimary = Color(0xFFF5F6FA);
-  static const Color textSecondary = Color(0xFFB0B3C5);
-  static const Color textMuted = Color(0xFF8B8FA3);
-  static const Color textTertiary = Color(0xFF6B7094);
+  // — Cyber-Luxe Text Palette —
+  static const Color textPrimary = Color(0xFFF8FAFC);   // Text Cream Main
+  static const Color textSecondary = Color(0xFFCBD5E1);
+  static const Color textMuted = Color(0xFF94A3B8);     // Text Muted Silver
+  static const Color textTertiary = Color(0xFF64748B);
 
-  // — Accent gradient —
-  static const Color primary = Color(0xFF6C5CE7);
-  static const Color primaryLight = Color(0xFFA29BFE);
-  static const Color primaryDark = Color(0xFF5A4BD1);
-  static const List<Color> primaryGradient = [Color(0xFF6C5CE7), Color(0xFFA29BFE)];
+  // — Dynamic accent (from active theme) —
+  static Color get primary => _activeTheme.accent;
+  static Color get primaryLight => _activeTheme.accentLight;
+  static Color get primaryDark => _activeTheme.accent;
+  static List<Color> get primaryGradient => _activeTheme.accentGradient;
 
-  // — Categories (saturated for dark bg) —
-  static const Color blue = Color(0xFF4FC3F7);     // Class — electric blue
-  static const Color red = Color(0xFFFF5C8A);       // Exam — hot pink
-  static const Color orange = Color(0xFFFFB74D);     // Assignment — amber
-  static const Color green = Color(0xFF69F0AE);      // Personal — mint green
-  static const Color purple = Color(0xFFCE93D8);
-  static const Color teal = Color(0xFF4DD0E1);
+  // — Cyber-Luxe Accent Colors —
+  static const Color cyberBlueViolet = Color(0xFF6366F1);  // Primary actions
+  static const Color magentaPink = Color(0xFFEC4899);      // Badges, notifications
+  static const Color warmCreamGold = Color(0xFFF59E0B);    // Event dots, AI icons
+
+  // — Categories —
+  static const Color blue = Color(0xFF60A5FA);
+  static const Color red = Color(0xFFEC4899);
+  static const Color orange = Color(0xFFF59E0B);
+  static const Color green = Color(0xFF34D399);
+  static const Color purple = Color(0xFFA78BFA);
+  static const Color teal = Color(0xFF2DD4BF);
 
   // — Semantic —
-  static const Color success = Color(0xFF69F0AE);
-  static const Color error = Color(0xFFFF5C8A);
-  static const Color warning = Color(0xFFFFB74D);
+  static const Color success = Color(0xFF34D399);
+  static const Color error = Color(0xFFEC4899);
+  static const Color warning = Color(0xFFF59E0B);
 
   // — Borders & Dividers —
-  static const Color border = Color(0xFF2A2D42);
-  static const Color borderLight = Color(0xFF353850);
-  static const Color divider = Color(0xFF1E2035);
+  static Color get border => _activeTheme.surfaceLight;
+  static Color get borderLight => _activeTheme.surfaceLight;
+  static Color get divider => _activeTheme.surface;
 
   // — Misc —
-  static const Color splash = Color(0x1A6C5CE7);
+  static Color get splash => _activeTheme.accent.withValues(alpha: 0.1);
   static const Color overlay = Color(0x80000000);
-  static const Color shimmer = Color(0xFF1E2035);
+  static Color get shimmer => _activeTheme.surfaceLight;
+
+  // — Glass effects —
+  static Color get glassTint => _activeTheme.glassTint;
+  static double get glassOpacity => _activeTheme.glassOpacity;
+  static Color get glassBorderStart => _activeTheme.borderStart;
+  static Color get glassBorderEnd => _activeTheme.borderEnd;
 
   // — Category color map —
   static const Map<String, Color> categoryColors = {
@@ -56,10 +71,15 @@ class AppColors {
   };
 
   static const Map<String, Color> priorityColors = {
-    'high': Color(0xFFFF5C8A),
-    'medium': Color(0xFFFFB74D),
-    'low': Color(0xFF69F0AE),
+    'high': Color(0xFFEC4899),
+    'medium': Color(0xFFF59E0B),
+    'low': Color(0xFF34D399),
   };
+
+  // Update the active theme
+  static void setTheme(GlassTheme theme) {
+    _activeTheme = theme;
+  }
 }
 
 // ===== SPACING =====
@@ -89,26 +109,26 @@ class AppShadow {
   AppShadow._();
 
   static List<BoxShadow> sm = [
-    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
   ];
 
   static List<BoxShadow> md = [
-    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 4)),
   ];
 
   static List<BoxShadow> lg = [
-    BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, 8)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 24, offset: const Offset(0, 8)),
   ];
 
   // Colored glow shadows
   static List<BoxShadow> glowPrimary = [
-    BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 20, spreadRadius: -4),
-    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+    BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, spreadRadius: -4),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
   ];
 
   static List<BoxShadow> glowCategory(Color color) => [
-    BoxShadow(color: color.withOpacity(0.25), blurRadius: 16, spreadRadius: -4),
-    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+    BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 16, spreadRadius: -4),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
   ];
 }
 
@@ -117,7 +137,7 @@ class AppGradient {
   AppGradient._();
 
   static const LinearGradient primary = LinearGradient(
-    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
+    colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -129,7 +149,7 @@ class AppGradient {
   );
 
   static LinearGradient categoryGlow(Color color) => LinearGradient(
-    colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+    colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
@@ -147,7 +167,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
 
       // Color scheme
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: AppColors.primary,
         onPrimary: Colors.white,
         secondary: AppColors.primaryLight,
@@ -157,7 +177,7 @@ class AppTheme {
       ),
 
       // AppBar
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -182,7 +202,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          side: BorderSide(color: AppColors.border, width: 1),
         ),
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
       ),
@@ -191,19 +211,19 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
       ),
 
@@ -219,14 +239,14 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        titleTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        contentTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.textSecondary),
+        titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        contentTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.textSecondary),
       ),
 
       // Bottom sheet
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
       ),
@@ -235,17 +255,17 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: AppColors.primary.withOpacity(0.15),
+        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary);
+            return TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary);
           }
           return TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.grey[500]);
         }),
       ),
 
       // FAB
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -253,10 +273,10 @@ class AppTheme {
       ),
 
       // Divider
-      dividerTheme: const DividerThemeData(color: AppColors.divider, thickness: 1),
+      dividerTheme: DividerThemeData(color: AppColors.divider, thickness: 1),
 
       // Text
-      textTheme: const TextTheme(
+      textTheme: TextTheme(
         headlineLarge: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         headlineMedium: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         headlineSmall: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary),

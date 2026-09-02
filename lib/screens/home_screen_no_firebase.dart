@@ -7,7 +7,6 @@ import '../services/sync_service.dart';
 import '../services/update_service.dart';
 import '../models/update_info.dart';
 import '../shared/widgets/note_card.dart';
-import '../shared/widgets/progress_widgets.dart';
 import '../shared/widgets/glass_widgets.dart';
 import 'note_editor_screen.dart';
 
@@ -132,7 +131,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
                   decoration: BoxDecoration(
                     gradient: AppGradient.primary,
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: const Icon(Icons.note_alt_rounded, color: Colors.white, size: 20),
                 ),
@@ -150,7 +149,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
                   decoration: BoxDecoration(
                     gradient: AppGradient.primary,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))],
                   ),
                   child: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
                 ),
@@ -174,7 +173,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
 
           // Notes list or Empty state with Daily Summary
           _isLoading
-              ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary)))
+              ? SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary)))
               : validNotes.isEmpty
                   ? SliverFillRemaining(child: _buildEmptyWithSummary())
                   : SliverPadding(
@@ -208,18 +207,18 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
+        color: AppColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 14, color: AppColors.primary.withOpacity(0.7)),
+          Icon(Icons.info_outline_rounded, size: 14, color: AppColors.primary.withValues(alpha: 0.7)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'v${_updateInfo!.version} available',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withOpacity(0.8)),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.8)),
             ),
           ),
           GestureDetector(
@@ -229,7 +228,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: () => setState(() => _showBanner = false),
-            child: Icon(Icons.close_rounded, size: 14, color: AppColors.textMuted.withOpacity(0.4)),
+            child: Icon(Icons.close_rounded, size: 14, color: AppColors.textMuted.withValues(alpha: 0.4)),
           ),
         ],
       ),
@@ -242,14 +241,14 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Row(
         children: [
-          Icon(Icons.edit_note_rounded, size: 16, color: AppColors.textMuted.withOpacity(0.5)),
+          Icon(Icons.edit_note_rounded, size: 16, color: AppColors.textMuted.withValues(alpha: 0.5)),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -257,7 +256,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
               style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
               decoration: InputDecoration(
                 hintText: 'Thêm ghi chú nhanh...',
-                hintStyle: TextStyle(color: AppColors.textMuted.withOpacity(0.4), fontSize: 13.5),
+                hintStyle: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.4), fontSize: 13.5),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -275,7 +274,7 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
               decoration: BoxDecoration(
                 gradient: AppGradient.primary,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 4)],
+                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4)],
               ),
               child: const Icon(Icons.send_rounded, size: 12, color: Colors.white),
             ),
@@ -296,20 +295,26 @@ class _HomeScreenNoFirebaseState extends State<HomeScreenNoFirebase> {
             decoration: BoxDecoration(
               gradient: AppGradient.primary,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.25), blurRadius: 20, spreadRadius: -4)],
+              boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 20, spreadRadius: -4)],
             ),
             child: const Icon(Icons.note_add_rounded, size: 40, color: Colors.white),
           ),
           const SizedBox(height: 20),
           const Text('No notes yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
           const SizedBox(height: 6),
-          Text('Type above to create your first note', style: TextStyle(fontSize: 13, color: AppColors.textMuted.withOpacity(0.5))),
+          Text('Type above to create your first note', style: TextStyle(fontSize: 13, color: AppColors.textMuted.withValues(alpha: 0.5))),
 
           // Daily Summary Widget (fills empty space)
           const Spacer(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
-            child: DailyProgressWidget(totalTasks: 0, completedTasks: 0),
+            child: Container(
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
           ),
         ],
       ),

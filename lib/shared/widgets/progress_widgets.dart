@@ -1,94 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
-// ===== DAILY PROGRESS WIDGET =====
-class DailyProgressWidget extends StatelessWidget {
-  final int totalTasks;
-  final int completedTasks;
-
-  const DailyProgressWidget(
-      {super.key, required this.totalTasks, required this.completedTasks});
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = totalTasks == 0 ? 0.0 : completedTasks / totalTasks;
-    final percentage = (progress * 100).round();
-    final quote = _getMotivationalQuote(percentage);
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.primaryLight.withOpacity(0.05)
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.primary.withOpacity(0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.trending_up_rounded,
-                  size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text('Daily Progress',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted.withOpacity(0.8))),
-              const Spacer(),
-              Text('$percentage%',
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.full),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: Colors.white.withOpacity(0.06),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress < 0.3
-                    ? AppColors.error
-                    : (progress < 0.7 ? AppColors.orange : AppColors.success),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(quote,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted.withOpacity(0.6),
-                  fontStyle: FontStyle.italic)),
-        ],
-      ),
-    );
-  }
-
-  String _getMotivationalQuote(int percentage) {
-    if (percentage == 0) {
-      return "Let's get started! Every journey begins with a single step.";
-    }
-    if (percentage < 30) return "Good start! Keep the momentum going.";
-    if (percentage < 50) return "You're making progress. Stay focused!";
-    if (percentage < 70) return "More than halfway there. You got this!";
-    if (percentage < 100) return "Almost done! Finish strong!";
-    return "All tasks completed! You're a superstar!";
-  }
-}
-
-// ===== WEEKLY CALENDAR STRIP =====
+// ===== WEEKLY CALENDAR STRIP (72px) =====
 class WeeklyCalendarStrip extends StatefulWidget {
   final DateTime selectedDate;
   final Function(DateTime) onDateSelected;
@@ -125,11 +38,11 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
     return Container(
-      height: 80,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      height: 72,
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Row(
         children: List.generate(7, (i) {
           final day = _weekDays[i];
@@ -152,24 +65,24 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary.withOpacity(0.2)
+                      ? AppColors.primary
                       : isToday
-                          ? Colors.white.withOpacity(0.06)
+                          ? AppColors.primary.withValues(alpha: 0.1)
                           : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   border: Border.all(
                     color: isSelected
                         ? AppColors.primary
                         : (isToday
-                            ? AppColors.primary.withOpacity(0.3)
-                            : Colors.white.withOpacity(0.06)),
-                    width: isSelected ? 2 : 1,
+                            ? AppColors.primary.withValues(alpha: 0.3)
+                            : Colors.white.withValues(alpha: 0.04)),
+                    width: isSelected ? 1.5 : 0.5,
                   ),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                              color: AppColors.primary.withOpacity(0.2),
-                              blurRadius: 8,
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 6,
                               spreadRadius: -2)
                         ]
                       : null,
@@ -180,14 +93,14 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                     Text(
                       dayNames[i],
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textMuted.withOpacity(0.6),
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : AppColors.textMuted.withValues(alpha: 0.6),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '${day.day}',
                       style: TextStyle(
@@ -195,34 +108,34 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                         fontWeight:
                             isToday ? FontWeight.w700 : FontWeight.w600,
                         color: isSelected
-                            ? AppColors.primary
+                            ? Colors.white
                             : (isToday
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary),
+                                ? AppColors.primary
+                                : AppColors.textPrimary),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     if (taskCount > 0)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           taskCount.clamp(0, 3),
                           (j) => Container(
-                            width: 4,
-                            height: 4,
+                            width: 3,
+                            height: 3,
                             margin:
                                 const EdgeInsets.symmetric(horizontal: 1),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.textMuted.withOpacity(0.5),
+                                  ? Colors.white.withValues(alpha: 0.8)
+                                  : AppColors.primary.withValues(alpha: 0.6),
                               shape: BoxShape.circle,
                             ),
                           ),
                         ),
                       )
                     else
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                   ],
                 ),
               ),

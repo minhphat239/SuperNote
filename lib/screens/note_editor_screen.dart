@@ -117,13 +117,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           decoration: BoxDecoration(
                             gradient: AppGradient.primary,
                             borderRadius: BorderRadius.circular(AppRadius.full),
-                            boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))],
+                            boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))],
                           ),
                           child: const Text('Save', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
                         ),
                       ),
                     if (!_hasChanges)
-                      Icon(Icons.check_rounded, size: 18, color: AppColors.success.withOpacity(0.6)),
+                      Icon(Icons.check_rounded, size: 18, color: AppColors.success.withValues(alpha: 0.6)),
                     const SizedBox(width: 8),
                   ],
                 ),
@@ -151,7 +151,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                           decoration: InputDecoration(
                             hintText: 'Untitled',
                             hintStyle: TextStyle(
-                              color: AppColors.textMuted.withOpacity(0.3),
+                              color: AppColors.textMuted.withValues(alpha: 0.3),
                               fontSize: 22,
                               fontWeight: FontWeight.w700,
                             ),
@@ -169,7 +169,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                         // Timestamp
                         Text(
                           _formatTimestamp(widget.note.updatedAt),
-                          style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(0.4)),
+                          style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.4)),
                         ),
 
                         const SizedBox(height: 16),
@@ -190,7 +190,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                             decoration: InputDecoration(
                               hintText: 'Start writing...\n\nNo borders. No limits. Just your thoughts.',
                               hintStyle: TextStyle(
-                                color: AppColors.textMuted.withOpacity(0.25),
+                                color: AppColors.textMuted.withValues(alpha: 0.25),
                                 fontSize: 15,
                                 height: 1.7,
                               ),
@@ -213,17 +213,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  border: Border(top: BorderSide(color: Colors.white.withOpacity(0.04), width: 0.5)),
+                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.text_fields_rounded, size: 16, color: AppColors.textMuted.withOpacity(0.4)),
+                    Icon(Icons.text_fields_rounded, size: 16, color: AppColors.textMuted.withValues(alpha: 0.4)),
                     const SizedBox(width: 4),
                     Text('${_contentController.text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length} words',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(0.4))),
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.4))),
                     const Spacer(),
                     Text(_formatTimestamp(widget.note.updatedAt),
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(0.4))),
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted.withValues(alpha: 0.4))),
                   ],
                 ),
               ),

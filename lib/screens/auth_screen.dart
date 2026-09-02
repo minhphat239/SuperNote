@@ -1,30 +1,125 @@
 import 'package:flutter/material.dart';
+import '../core/theme/app_theme.dart';
+import '../core/theme/glass_theme.dart';
 import '../services/auth_service.dart';
+import '../services/theme_service.dart';
 
 class AuthScreen extends StatefulWidget {
   final AuthService authService;
+  final ThemeService themeService;
 
-  const AuthScreen({super.key, required this.authService});
+  const AuthScreen({
+    super.key,
+    required this.authService,
+    required this.themeService,
+  });
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLogin = true;
+class _AuthScreenState extends State<AuthScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+  late Animation<double> _scaleAnim;
+
   bool _isLoading = false;
   String? _error;
 
+  // Email form
+  bool _isLogin = true;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passController = TextEditingController();
+  final _confirmPassController = TextEditingController();
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: const Interval(0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1).animate(
+      CurvedAnimation(
+        parent: _animController,
+        curve: const Interval(0.2, 0.8, curve: Curves.easeOutBack),
+      ),
+    );
+    _animController.forward();
+  }
+
   @override
   void dispose() {
+    _animController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
+    _passController.dispose();
+    _confirmPassController.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  // ==================== GOOGLE ====================
+  Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final success = await widget.authService.signInWithGoogle();
+      if (!mounted) return;
+      if (!success) {
+        setState(() {
+          _error = 'Bạn đã hủy chọn tài khoản Google';
+          _isLoading = false;
+        });
+      }
+      // On success, authStateChanges stream auto-navigates to MainShell
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = _friendlyError(e);
+        _isLoading = false;
+      });
+    }
+  }
+
+  // ==================== EMAIL ====================
+  Future<void> _submitEmail() async {
+    if (_isLoading) return;
+
+    // Validate
+    if (_emailController.text.trim().isEmpty ||
+        _passController.text.isEmpty) {
+      setState(() => _error = 'Vui lòng nhập đầy đủ email và mật khẩu');
+      return;
+    }
+
+    if (!_isLogin) {
+      if (_nameController.text.trim().isEmpty) {
+        setState(() => _error = 'Vui lòng nhập tên');
+        return;
+      }
+      if (_passController.text != _confirmPassController.text) {
+        setState(() => _error = 'Mật khẩu xác nhận không khớp');
+        return;
+      }
+      if (_passController.text.length < 6) {
+        setState(() => _error = 'Mật khẩu phải có ít nhất 6 ký tự');
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -34,160 +129,83 @@ class _AuthScreenState extends State<AuthScreen> {
       if (_isLogin) {
         await widget.authService.signInWithEmail(
           _emailController.text.trim(),
-          _passwordController.text,
+          _passController.text,
         );
       } else {
-        await widget.authService.signUpWithEmail(
+        await widget.authService.registerWithEmail(
           _emailController.text.trim(),
-          _passwordController.text,
+          _passController.text,
+          _nameController.text.trim(),
         );
       }
+      // On success, authStateChanges stream auto-navigates to MainShell
     } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() {
+        _error = _friendlyError(e);
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _signInWithGoogle() async {
+  // ==================== GUEST ====================
+  Future<void> _signInAsGuest() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _error = null;
     });
-
     try {
-      await widget.authService.signInWithGoogle();
+      await widget.authService.signInAsLocal();
     } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() {
+        _error = _friendlyError(e);
+        _isLoading = false;
+      });
     }
+  }
+
+  String _friendlyError(Object e) {
+    final msg = e.toString();
+    if (msg.contains('user-not-found')) return 'Không tìm thấy tài khoản';
+    if (msg.contains('wrong-password')) return 'Sai mật khẩu';
+    if (msg.contains('email-already-in-use')) return 'Email đã được sử dụng';
+    if (msg.contains('invalid-email')) return 'Email không hợp lệ';
+    if (msg.contains('weak-password')) return 'Mật khẩu quá yếu';
+    if (msg.contains('network-request-failed')) return 'Lỗi kết nối mạng';
+    if (msg.contains('invalid-credential')) return 'Thông tin đăng nhập không hợp lệ';
+    return msg.length > 100 ? 'Đã xảy ra lỗi. Vui lòng thử lại.' : msg;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: ScaleTransition(
+                scale: _scaleAnim,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.note_alt, size: 64, color: Colors.blue),
-                    const SizedBox(height: 16),
-                    Text(
-                      'SuperNote',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isLogin ? 'Sign in to sync your notes' : 'Create an account',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+                    _buildLogo(),
                     const SizedBox(height: 32),
-
-                    // Google Sign-In Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading ? null : _signInWithGoogle,
-                        icon: const Icon(Icons.g_mobiledata, size: 24),
-                        label: const Text('Sign in with Google'),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.grey),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Email/Password Fields
-                    TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordController,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock),
-                        border: OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                    ),
+                    _buildAuthButtons(),
                     if (_error != null) ...[
                       const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error, color: Colors.red, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildErrorBanner(),
                     ],
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submit,
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Text(_isLogin ? 'Sign In' : 'Sign Up'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () => setState(() => _isLogin = !_isLogin),
-                      child: Text(
-                        _isLogin
-                            ? "Don't have an account? Sign Up"
-                            : 'Already have an account? Sign In',
+                    const SizedBox(height: 32),
+                    Text(
+                      'Dữ liệu được lưu trữ an toàn trên thiết bị',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -195,6 +213,398 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, Color(0xFF9B59B6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.note_alt_rounded, size: 40, color: Colors.white),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'SuperNote',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Quản lý công việc thông minh',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAuthButtons() {
+    return Column(
+      children: [
+        // ===== GOOGLE =====
+        _AuthButton(
+          icon: Icons.g_mobiledata_rounded,
+          label: 'Đăng nhập bằng Google',
+          color: const Color(0xFF4285F4),
+          isLoading: _isLoading,
+          onTap: _signInWithGoogle,
+          glassTheme: widget.themeService.current,
+        ),
+        const SizedBox(height: 12),
+
+        // ===== DIVIDER =====
+        Row(
+          children: [
+            Expanded(child: Divider(color: AppColors.border)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Text('hoặc',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            ),
+            Expanded(child: Divider(color: AppColors.border)),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ===== EMAIL FORM =====
+        _buildEmailForm(),
+        const SizedBox(height: 12),
+
+        // ===== GUEST =====
+        _AuthButton(
+          icon: Icons.phone_android_rounded,
+          label: 'Sử dụng ngay (khách)',
+          color: AppColors.green,
+          isOutlined: true,
+          isLoading: _isLoading,
+          onTap: _signInAsGuest,
+          glassTheme: widget.themeService.current,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmailForm() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Toggle login/register
+          Row(
+            children: [
+              Icon(Icons.mail_outline_rounded, size: 20, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isLogin ? 'Đăng nhập bằng Email' : 'Tạo tài khoản mới',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Name (register only)
+          if (!_isLogin) ...[
+            _FieldInput(
+              controller: _nameController,
+              hint: 'Tên của bạn',
+              icon: Icons.person_outline_rounded,
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Email
+          _FieldInput(
+            controller: _emailController,
+            hint: 'Email',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 10),
+
+          // Password
+          _FieldInput(
+            controller: _passController,
+            hint: 'Mật khẩu',
+            icon: Icons.lock_outline_rounded,
+            obscure: _obscurePass,
+            suffix: IconButton(
+              icon: Icon(
+                _obscurePass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                size: 18,
+                color: AppColors.textMuted,
+              ),
+              onPressed: () => setState(() => _obscurePass = !_obscurePass),
+            ),
+          ),
+
+          // Confirm password (register only)
+          if (!_isLogin) ...[
+            const SizedBox(height: 10),
+            _FieldInput(
+              controller: _confirmPassController,
+              hint: 'Xác nhận mật khẩu',
+              icon: Icons.lock_outline_rounded,
+              obscure: _obscureConfirm,
+              suffix: IconButton(
+                icon: Icon(
+                  _obscureConfirm ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
+                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // Submit button
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submitEmail,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      _isLogin ? 'Đăng nhập' : 'Đăng ký',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Toggle login/register link
+          Center(
+            child: GestureDetector(
+              onTap: () => setState(() {
+                _isLogin = !_isLogin;
+                _error = null;
+              }),
+              child: Text(
+                _isLogin
+                    ? 'Chưa có tài khoản? Đăng ký ngay'
+                    : 'Đã có tài khoản? Đăng nhập',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== WIDGETS ====================
+
+class _AuthButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isOutlined;
+  final bool isLoading;
+  final VoidCallback onTap;
+  final GlassTheme? glassTheme;
+
+  const _AuthButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.isOutlined = false,
+    required this.isLoading,
+    required this.onTap,
+    this.glassTheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = glassTheme?.glassTint ?? color;
+    final borderStart = glassTheme?.borderStart ?? color;
+
+    return Container(
+      width: double.infinity,
+      height: 48,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        gradient: isOutlined
+            ? null
+            : LinearGradient(
+                colors: [
+                  tint.withValues(alpha: glassTheme?.glassOpacity ?? 0.08),
+                  tint.withValues(alpha: (glassTheme?.glassOpacity ?? 0.08) * 0.5),
+                ],
+              ),
+        color: isOutlined ? Colors.transparent : null,
+        border: Border.all(
+          width: 1,
+          color: isOutlined ? color.withValues(alpha: 0.3) : borderStart.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: InkWell(
+          onTap: isLoading ? null : onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: color),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isOutlined ? color : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isLoading)
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                  )
+                else
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final Widget? suffix;
+  final TextInputType? keyboardType;
+
+  const _FieldInput({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.obscure = false,
+    this.suffix,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5)),
+        prefixIcon: Icon(icon, size: 18),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: AppColors.background,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderSide: BorderSide(color: AppColors.primary),
         ),
       ),
     );

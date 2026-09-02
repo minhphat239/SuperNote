@@ -1,13 +1,28 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
+
 import '../models/task.dart';
+import 'auth_service.dart';
 import 'nlp_service.dart';
 import 'notification_service.dart';
+import 'feedback_service.dart';
+import 'firestore_repository.dart';
+import 'ai_parser_service.dart';
 
 class TaskService {
-  static const String _tasksKey = 'tasks';
+  static const String _prefix = 'tasks_';
+  final AuthService? _authService;
   List<Task> _tasks = [];
   final NotificationService _notificationService = NotificationService();
+  final FeedbackService _feedback = FeedbackService();
+  final FirestoreRepository _firestore = FirestoreRepository();
+  final AiParserService _aiParser = AiParserService();
+  String? _currentUserId;
+
+  TaskService({AuthService? authService}) : _authService = authService;
+
+  String get _tasksKey => '$_prefix${_currentUserId ?? "guest"}';
 
   List<Task> get tasks => List.unmodifiable(_tasks);
   List<Task> get pendingTasks =>
@@ -18,28 +33,63 @@ class TaskService {
       _tasks.where((t) => t.status == TaskStatus.snoozed).toList();
 
   Future<void> init() async {
+    _currentUserId = _authService?.userId;
     try {
       await _loadTasks();
     } catch (e) {
-      // Ignore malformed old data instead of blocking the whole app.
+      developer.log('Failed to load tasks', error: e, name: 'TaskService');
       _tasks = [];
     }
-    await _notificationService.init();
+    try {
+      await _notificationService.init();
+    } catch (e) {
+      developer.log('Notification init failed', error: e, name: 'TaskService');
+    }
     _setupNotificationHandlers();
     try {
       await _rescheduleAllNotifications();
-    } catch (_) {
-      // Notification permission or alarm policy must not block the UI.
+    } catch (e) {
+      developer.log('Reschedule notifications failed', error: e, name: 'TaskService');
+    }
+    try {
+      await _feedback.init();
+    } catch (e) {
+      developer.log('Feedback init failed', error: e, name: 'TaskService');
+    }
+    try {
+      await _aiParser.init();
+    } catch (e) {
+      developer.log('AI Parser init failed', error: e, name: 'TaskService');
+    }
+  }
+
+  Future<void> reloadForUser(String? userId) async {
+    _currentUserId = userId;
+    _tasks = [];
+    try {
+      await _loadTasks();
+    } catch (e) {
+      developer.log('Reload tasks failed', error: e, name: 'TaskService');
+      _tasks = [];
+    }
+    try {
+      await _rescheduleAllNotifications();
+    } catch (e) {
+      developer.log('Reschedule notifications failed', error: e, name: 'TaskService');
     }
   }
 
   void _setupNotificationHandlers() {
     _notificationService.onNotificationTapped = (taskId) {};
     _notificationService.onNotificationAction = (taskId, action) async {
-      if (action == 'done') {
-        await toggleTask(taskId);
-      } else if (action == 'snooze') {
-        await snoozeTask(taskId, const Duration(minutes: 30));
+      try {
+        if (action == 'done') {
+          await toggleTask(taskId);
+        } else if (action == 'snooze') {
+          await snoozeTask(taskId, const Duration(minutes: 30));
+        }
+      } catch (e) {
+        developer.log('Notification action failed', error: e, name: 'TaskService');
       }
     };
   }
@@ -62,6 +112,15 @@ class TaskService {
     final prefs = await SharedPreferences.getInstance();
     final data = _tasks.map((e) => e.toMap()).toList();
     await prefs.setString(_tasksKey, jsonEncode(data));
+
+    // Sync to cloud if authenticated
+    try {
+      if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
+        await _firestore.syncLocalToCloud(_tasks);
+      }
+    } catch (e) {
+      developer.log('Cloud sync failed', error: e, name: 'TaskService');
+    }
   }
 
   NlpPreview getNlpPreview(String input) {
@@ -109,8 +168,27 @@ class TaskService {
 
     _tasks.insert(0, task);
     await _saveTasks();
-    await _notificationService.scheduleTaskNotification(task);
+    try {
+      await _notificationService.scheduleTaskNotification(task);
+    } catch (e) {
+      developer.log('Schedule notification failed', error: e, name: 'TaskService');
+    }
     return task;
+  }
+
+  Future<AiParsedTask> addTaskFromAi(String input) async {
+    final parsed = await _aiParser.parseTaskInput(input);
+    final task = parsed.toTask();
+
+    _tasks.insert(0, task);
+    await _saveTasks();
+    try {
+      await _notificationService.scheduleTaskNotification(task);
+    } catch (e) {
+      developer.log('Schedule notification failed', error: e, name: 'TaskService');
+    }
+    _feedback.trigger(FeedbackType.aiSuccess);
+    return parsed;
   }
 
   Future<Task> addTask({
@@ -142,7 +220,11 @@ class TaskService {
 
     _tasks.insert(0, task);
     await _saveTasks();
-    await _notificationService.scheduleTaskNotification(task);
+    try {
+      await _notificationService.scheduleTaskNotification(task);
+    } catch (e) {
+      developer.log('Schedule notification failed', error: e, name: 'TaskService');
+    }
     return task;
   }
 
@@ -150,18 +232,26 @@ class TaskService {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index != -1) {
       final current = _tasks[index];
-      final newStatus =
-          current.isDone ? TaskStatus.pending : TaskStatus.done;
+      final newStatus = current.isDone ? TaskStatus.pending : TaskStatus.done;
       _tasks[index] = current.copyWith(status: newStatus);
       await _saveTasks();
 
       if (newStatus == TaskStatus.done) {
-        await _notificationService.cancelTaskNotifications(current);
+        _feedback.trigger(FeedbackType.complete);
+        try {
+          await _notificationService.cancelTaskNotifications(current);
+        } catch (e) {
+          developer.log('Cancel notifications failed', error: e, name: 'TaskService');
+        }
         if (current.repeatRule != null && current.repeatRule!.isNotEmpty) {
           await _createNextOccurrence(current);
         }
       } else {
-        await _notificationService.scheduleTaskNotification(current);
+        try {
+          await _notificationService.scheduleTaskNotification(current);
+        } catch (e) {
+          developer.log('Schedule notification failed', error: e, name: 'TaskService');
+        }
       }
     }
   }
@@ -181,8 +271,7 @@ class TaskService {
       description: task.description,
       noteContent: task.noteContent,
       subtasks: task.subtasks
-          .map((s) => SubTask(
-              id: s.id, title: s.title, isDone: false))
+          .map((s) => SubTask(id: s.id, title: s.title, isDone: false))
           .toList(),
       dueDate: nextDueDate,
       dueTime: task.dueTime,
@@ -195,7 +284,11 @@ class TaskService {
 
     _tasks.insert(0, nextTask);
     await _saveTasks();
-    await _notificationService.scheduleTaskNotification(nextTask);
+    try {
+      await _notificationService.scheduleTaskNotification(nextTask);
+    } catch (e) {
+      developer.log('Schedule notification failed', error: e, name: 'TaskService');
+    }
   }
 
   DateTime? _calculateNextDueDate(Task task) {
@@ -247,8 +340,12 @@ class TaskService {
         status: TaskStatus.snoozed,
       );
       await _saveTasks();
-      await _notificationService.cancelTaskNotifications(current);
-      await _notificationService.scheduleTaskNotification(_tasks[index]);
+      try {
+        await _notificationService.cancelTaskNotifications(current);
+        await _notificationService.scheduleTaskNotification(_tasks[index]);
+      } catch (e) {
+        developer.log('Snooze notification failed', error: e, name: 'TaskService');
+      }
     }
   }
 
@@ -258,10 +355,24 @@ class TaskService {
       orElse: () => Task(id: '', title: ''),
     );
     if (task.id.isNotEmpty) {
-      await _notificationService.cancelTaskNotifications(task);
+      try {
+        await _notificationService.cancelTaskNotifications(task);
+      } catch (e) {
+        developer.log('Cancel notifications failed', error: e, name: 'TaskService');
+      }
     }
     _tasks.removeWhere((t) => t.id == taskId);
     await _saveTasks();
+
+    // Delete from cloud
+    try {
+      if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
+        await _firestore.deleteTask(taskId);
+      }
+    } catch (e) {
+      developer.log('Cloud delete failed', error: e, name: 'TaskService');
+    }
+    _feedback.trigger(FeedbackType.delete);
   }
 
   Future<void> updateTask(
@@ -296,17 +407,29 @@ class TaskService {
       );
       _tasks[index] = updated;
       await _saveTasks();
-      await _notificationService.cancelTaskNotifications(current);
-      if (updated.status == TaskStatus.pending) {
-        await _notificationService.scheduleTaskNotification(updated);
+      try {
+        await _notificationService.cancelTaskNotifications(current);
+        if (updated.status == TaskStatus.pending) {
+          await _notificationService.scheduleTaskNotification(updated);
+        }
+      } catch (e) {
+        developer.log('Notification update failed', error: e, name: 'TaskService');
+      }
+
+      // Update in cloud
+      try {
+        if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
+          await _firestore.updateTask(taskId, updated.toMap());
+        }
+      } catch (e) {
+        developer.log('Cloud update failed', error: e, name: 'TaskService');
       }
     }
   }
 
   Future<void> _rescheduleAllNotifications() async {
-    await _notificationService.rescheduleAllTasks(_tasks
-        .where((t) => t.status == TaskStatus.pending)
-        .toList());
+    await _notificationService.rescheduleAllTasks(
+        pendingTasks);
   }
 
   List<Task> getTasksForDate(DateTime date) {
@@ -314,8 +437,8 @@ class TaskService {
     return _tasks.where((t) {
       if (t.status == TaskStatus.done) return false;
       if (t.dueDate == null) return false;
-      final taskDate = DateTime(
-          t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+      final taskDate =
+          DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
       return taskDate.isAtSameMomentAs(target);
     }).toList();
   }

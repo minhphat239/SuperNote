@@ -1,13 +1,26 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
+import 'auth_service.dart';
 
 class StorageService {
-  static const String _notesKey = 'notes_data';
+  static const String _prefix = 'notes_';
+  final AuthService? _authService;
   late SharedPreferences _prefs;
+  String? _currentUserId;
+
+  StorageService({AuthService? authService}) : _authService = authService;
+
+  String get _notesKey => '$_prefix${_currentUserId ?? "guest"}';
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    _currentUserId = _authService?.userId;
+  }
+
+  /// Reload notes when user changes (login/logout)
+  Future<void> reloadForUser(String? userId) async {
+    _currentUserId = userId;
   }
 
   Future<List<Note>> getAllNotes() async {

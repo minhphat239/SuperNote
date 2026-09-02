@@ -114,7 +114,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
+            colorScheme: ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -133,7 +133,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primary),
+            colorScheme: ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -185,7 +185,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.primary)),
+            child: Text('Save', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.primary)),
           ),
         ],
       ),
@@ -276,15 +276,15 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderSide: BorderSide(color: AppColors.primary, width: 2),
       ),
     );
   }
@@ -302,7 +302,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: selected ? cat.color.withOpacity(0.15) : AppColors.surface,
+              color: selected ? cat.color.withValues(alpha: 0.15) : AppColors.surface,
               borderRadius: BorderRadius.circular(AppRadius.full),
               border: Border.all(
                 color: selected ? cat.color : AppColors.border,
@@ -354,7 +354,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.red.withOpacity(0.1),
+                color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
@@ -391,7 +391,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.red.withOpacity(0.1),
+                color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
@@ -431,7 +431,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.purple.withOpacity(0.12) : AppColors.surface,
+                  color: selected ? AppColors.purple.withValues(alpha: 0.12) : AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                   border: Border.all(
                     color: selected ? AppColors.purple : AppColors.border,
@@ -530,7 +530,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.red.withOpacity(0.1),
+                color: AppColors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: const Icon(Icons.close_rounded, size: 16, color: AppColors.red),
@@ -582,7 +582,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: selected ? AppColors.teal.withOpacity(0.12) : AppColors.surface,
+              color: selected ? AppColors.teal.withValues(alpha: 0.12) : AppColors.surface,
               borderRadius: BorderRadius.circular(AppRadius.full),
               border: Border.all(
                 color: selected ? AppColors.teal : AppColors.border,
