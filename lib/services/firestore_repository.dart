@@ -277,49 +277,72 @@ class FirestoreRepository {
   }
 
   Task _mapToTask(String id, Map<String, dynamic> data) {
-    final subtasksData = data['subtasks'] as List<dynamic>?;
-    final subtasks = subtasksData?.map((s) {
-      final map = s as Map<String, dynamic>;
-      return SubTask(
-        id: map['id'] as String,
-        title: map['title'] as String,
-        isDone: map['isDone'] as bool? ?? false,
+    try {
+      final subtasksData = data['subtasks'] as List<dynamic>?;
+      final subtasks = subtasksData?.map((s) {
+        if (s is! Map) {
+          return SubTask(id: '', title: '');
+        }
+        final map = s;
+        return SubTask(
+          id: map['id'] is String ? map['id'] as String : '',
+          title: map['title'] is String ? map['title'] as String : '',
+          isDone: map['isDone'] is bool ? map['isDone'] as bool : false,
+        );
+      }).toList() ?? [];
+
+      final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
+      final dueTime = (data['dueTime'] as Timestamp?)?.toDate();
+      final repeatEndDate = (data['repeatEndDate'] as Timestamp?)?.toDate();
+
+      TaskCategory category;
+      try {
+        final catRaw = data['category'];
+        category = catRaw is String
+            ? TaskCategory.values.byName(catRaw)
+            : TaskCategory.personal;
+      } catch (_) {
+        category = TaskCategory.personal;
+      }
+
+      TaskStatus status;
+      try {
+        final statusRaw = data['status'];
+        status = statusRaw is String
+            ? TaskStatus.values.byName(statusRaw)
+            : TaskStatus.pending;
+      } catch (_) {
+        status = TaskStatus.pending;
+      }
+
+      final preReminderRaw = data['preReminderOffset'];
+      final preReminder = preReminderRaw is int
+          ? preReminderRaw
+          : (preReminderRaw is num ? preReminderRaw.toInt() : null);
+
+      return Task(
+        id: id,
+        title: data['title'] is String ? data['title'] as String : '',
+        description: data['description'] is String ? data['description'] as String : '',
+        noteContent: data['noteContent'] is String ? data['noteContent'] as String : '',
+        subtasks: subtasks,
+        dueDate: dueDate,
+        dueTime: dueTime,
+        category: category,
+        repeatRule: data['repeatRule'] is String ? data['repeatRule'] as String : null,
+        repeatEndDate: repeatEndDate,
+        preReminderOffset: preReminder,
+        status: status,
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
-    }).toList() ?? [];
-
-    final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
-    final dueTime = (data['dueTime'] as Timestamp?)?.toDate();
-    final repeatEndDate = (data['repeatEndDate'] as Timestamp?)?.toDate();
-
-    TaskCategory category;
-    try {
-      category = TaskCategory.values.byName(data['category'] as String);
-    } catch (_) {
-      category = TaskCategory.personal;
+    } catch (e, st) {
+      developer.log('Failed to map Firestore task (id=$id)', error: e, stackTrace: st, name: 'FirestoreRepository');
+      // Return minimal valid task so app doesn't crash on corrupted data
+      return Task(
+        id: id,
+        title: data['title'] is String ? data['title'] as String : '(Lỗi dữ liệu)',
+      );
     }
-
-    TaskStatus status;
-    try {
-      status = TaskStatus.values.byName(data['status'] as String);
-    } catch (_) {
-      status = TaskStatus.pending;
-    }
-
-    return Task(
-      id: id,
-      title: data['title'] as String? ?? '',
-      description: data['description'] as String? ?? '',
-      noteContent: data['noteContent'] as String? ?? '',
-      subtasks: subtasks,
-      dueDate: dueDate,
-      dueTime: dueTime,
-      category: category,
-      repeatRule: data['repeatRule'] as String?,
-      repeatEndDate: repeatEndDate,
-      preReminderOffset: data['preReminderOffset'] as int?,
-      status: status,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
   }
 }

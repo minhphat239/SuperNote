@@ -9,6 +9,7 @@ class SyncService extends ChangeNotifier {
   bool _isOnline = true;
   DateTime? _lastSyncTime;
   Timer? _periodicSync;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   bool get isSyncing => _isSyncing;
   bool get isOnline => _isOnline;
@@ -24,7 +25,7 @@ class SyncService extends ChangeNotifier {
   }
 
   void _initConnectivity() {
-    Connectivity().onConnectivityChanged.listen((results) {
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final wasOnline = _isOnline;
       _isOnline = results.any((r) => r != ConnectivityResult.none);
 
@@ -32,6 +33,8 @@ class SyncService extends ChangeNotifier {
         sync();
       }
       notifyListeners();
+    }, onError: (Object _) {
+      // ignore connectivity stream errors
     });
   }
 
@@ -55,6 +58,7 @@ class SyncService extends ChangeNotifier {
   @override
   void dispose() {
     _periodicSync?.cancel();
+    _connectivitySub?.cancel();
     super.dispose();
   }
 }

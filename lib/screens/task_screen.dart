@@ -69,11 +69,12 @@ class _TaskScreenState extends State<TaskScreen> {
       );
     }
 
+    if (!mounted) return;
     if (results.length > 1) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Row(children: [
-          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+          Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text('Đã thêm ${results.length} task mới',
@@ -91,15 +92,24 @@ class _TaskScreenState extends State<TaskScreen> {
 
   void _toggleTask(Task task) async {
     final wasDone = task.isDone;
-    await widget.taskService.toggleTask(task.id);
+    try {
+      await widget.taskService.toggleTask(task.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Lỗi: $e'),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
+    if (!mounted) return;
     setState(() {});
 
     if (!wasDone) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Row(children: [
-          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+          Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
           const SizedBox(width: 8),
           Expanded(
               child: Text('Đã hoàn thành: ${task.title}',

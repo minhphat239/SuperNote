@@ -126,6 +126,10 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
         child: Image.file(
           bg.file!,
           fit: BoxFit.cover,
+          // Cap decoded bitmap size to avoid OOM on low-RAM devices with large photos.
+          // 1080x1920 covers most phones while keeping memory ~8MB.
+          cacheWidth: 1080,
+          cacheHeight: 1920,
           errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
         ),
       );

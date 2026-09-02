@@ -106,13 +106,34 @@ class GeminiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final candidates = data['candidates'] as List?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final content = candidates[0]['content'];
-          final parts = content['parts'] as List;
-          return parts[0]['text'] as String;
+        if (data is! Map) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
         }
-        return 'Không nhận được phản hồi từ AI. Thử lại sau.';
+        final candidates = data['candidates'];
+        if (candidates is! List || candidates.isEmpty) {
+          return 'Không nhận được phản hồi từ AI. Thử lại sau.';
+        }
+        final firstCandidate = candidates.first;
+        if (firstCandidate is! Map) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
+        }
+        final content = firstCandidate['content'];
+        if (content is! Map) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
+        }
+        final parts = content['parts'];
+        if (parts is! List || parts.isEmpty) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
+        }
+        final firstPart = parts.first;
+        if (firstPart is! Map) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
+        }
+        final text = firstPart['text'];
+        if (text is! String) {
+          return 'Phản hồi AI không hợp lệ. Thử lại sau.';
+        }
+        return text;
       } else if (response.statusCode == 503 && retryCount < 2) {
         await Future.delayed(const Duration(seconds: 3));
         return generate(prompt, systemInstruction: systemInstruction, retryCount: retryCount + 1);

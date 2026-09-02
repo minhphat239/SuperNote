@@ -26,8 +26,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadVersion() async {
-    final version = await UpdateService.getCurrentVersion();
-    setState(() => _currentVersion = version);
+    try {
+      final version = await UpdateService.getCurrentVersion();
+      if (!mounted) return;
+      setState(() => _currentVersion = version);
+    } catch (_) {
+      // ignore — leave version empty
+    }
   }
 
   Future<void> _checkForUpdate() async {
@@ -36,8 +41,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _updateSuccess = false;
     });
 
-    final update = await UpdateService.checkForUpdate();
+    UpdateInfo? update;
+    try {
+      update = await UpdateService.checkForUpdate();
+    } catch (_) {
+      update = null;
+    }
 
+    if (!mounted) return;
     setState(() {
       _updateInfo = update;
       _isChecking = false;
@@ -52,14 +63,21 @@ class _HomeScreenState extends State<HomeScreen> {
       _downloadProgress = 0;
     });
 
-    final success = await UpdateService.downloadUpdate(
-      _updateInfo!.downloadUrl,
-      _updateInfo!.assetName,
-      (progress) {
-        setState(() => _downloadProgress = progress);
-      },
-    );
+    bool success = false;
+    try {
+      success = await UpdateService.downloadUpdate(
+        _updateInfo!.downloadUrl,
+        _updateInfo!.assetName,
+        (progress) {
+          if (!mounted) return;
+          setState(() => _downloadProgress = progress);
+        },
+      );
+    } catch (_) {
+      success = false;
+    }
 
+    if (!mounted) return;
     setState(() {
       _isDownloading = false;
       _updateSuccess = success;
@@ -68,9 +86,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openReleasePage() async {
-    final url = Uri.parse(UpdateService.getReleaseUrl());
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    try {
+      final url = Uri.parse(UpdateService.getReleaseUrl());
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      // ignore — open page best-effort
     }
   }
 

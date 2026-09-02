@@ -265,8 +265,9 @@ class _AiChatPanelState extends State<AiChatPanel> {
               }
 
               TaskCategory category = TaskCategory.personal;
-              if (task['category'] != null) {
-                final catStr = (task['category'] as String).toLowerCase();
+              final catRaw = task['category'];
+              if (catRaw is String && catRaw.isNotEmpty) {
+                final catStr = catRaw.toLowerCase();
                 if (catStr == 'class') {
                   category = TaskCategory.class_;
                 } else if (catStr == 'exam') {
@@ -277,8 +278,13 @@ class _AiChatPanelState extends State<AiChatPanel> {
               }
 
               int? reminderMinutes;
-              if (task['reminder_minutes'] != null) {
-                reminderMinutes = task['reminder_minutes'] as int;
+              final reminderRaw = task['reminder_minutes'];
+              if (reminderRaw is int) {
+                reminderMinutes = reminderRaw;
+              } else if (reminderRaw is num) {
+                reminderMinutes = reminderRaw.toInt();
+              } else if (reminderRaw is String) {
+                reminderMinutes = int.tryParse(reminderRaw);
               }
 
               suggestions.add(TaskSuggestion(

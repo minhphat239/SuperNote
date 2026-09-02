@@ -11,6 +11,7 @@ class AuthService extends ChangeNotifier {
   final _auth = FirebaseAuth.instance;
   final _googleSignIn = GoogleSignIn();
   final _authStreamController = StreamController<bool>.broadcast();
+  StreamSubscription<User?>? _authSubscription;
 
   User? _user;
   bool _isLoading = false;
@@ -28,10 +29,12 @@ class AuthService extends ChangeNotifier {
   Stream<bool> get authStateChanges => _authStreamController.stream;
 
   AuthService() {
-    _auth.authStateChanges().listen((user) {
+    _authSubscription = _auth.authStateChanges().listen((user) {
       _user = user;
       _authStreamController.add(user != null);
       notifyListeners();
+    }, onError: (Object e) {
+      developer.log('Auth state stream error', error: e, name: 'AuthService');
     });
   }
 
@@ -269,6 +272,7 @@ class AuthService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _authStreamController.close();
     super.dispose();
   }

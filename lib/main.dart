@@ -66,13 +66,112 @@ Future<void> _bootstrapDesktop() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await StartupLog.init();
+  StartupLog.initSync();
+  installGlobalErrorHandlers();
   StartupLog.mark('main-start');
+  runApp(const _CrashAwareApp());
+}
 
-  // Initialize timezone data early — required for notification scheduling
+/// Renders the real app once services are ready, while keeping a crash
+/// overlay handler alive from the very first frame.
+class _CrashAwareApp extends StatefulWidget {
+  const _CrashAwareApp();
+
+  @override
+  State<_CrashAwareApp> createState() => _CrashAwareAppState();
+}
+
+class _CrashAwareAppState extends State<_CrashAwareApp> {
+  @override
+  Widget build(BuildContext context) {
+    errorContext = context;
+    return const _ServiceBootstrap();
+  }
+}
+
+class _ServiceBootstrap extends StatefulWidget {
+  const _ServiceBootstrap();
+
+  @override
+  State<_ServiceBootstrap> createState() => _ServiceBootstrapState();
+}
+
+class _ServiceBootstrapState extends State<_ServiceBootstrap> {
+  Object? _bootstrapError;
+  BootstrapServices? _services;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final services = await _initServices();
+      if (mounted) setState(() => _services = services);
+    } catch (e, s) {
+      StartupLog.logCrash(e, s);
+      if (mounted) setState(() => _bootstrapError = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bootstrapError != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B0F17),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SelectableText(
+              '⚠️ BOOTSTRAP ERROR\n\n$_bootstrapError',
+              style: const TextStyle(color: Colors.red, fontFamily: 'monospace'),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_services == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0B0F17),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+        ),
+      );
+    }
+    return SuperNoteAppShell(services: _services!);
+  }
+}
+
+class BootstrapServices {
+  final NoteService noteService;
+  final SyncService syncService;
+  final TaskService taskService;
+  final AuthService authService;
+  final GeminiService geminiService;
+  final ThemeService themeService;
+  final AutoUpdateService updateService;
+  final CustomBackgroundService? customBackgroundService;
+  final LanguageService languageService;
+
+  const BootstrapServices({
+    required this.noteService,
+    required this.syncService,
+    required this.taskService,
+    required this.authService,
+    required this.geminiService,
+    required this.themeService,
+    required this.updateService,
+    this.customBackgroundService,
+    required this.languageService,
+  });
+}
+
+Future<BootstrapServices> _initServices() async {
+  StartupLog.mark('timezone');
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
-  StartupLog.mark('timezone');
 
   try {
     await Firebase.initializeApp(
@@ -86,8 +185,6 @@ void main() async {
   await initializeDateFormatting('vi', null);
   StartupLog.mark('dateformat');
 
-  // window_manager is NOT supported on Android/iOS — calling it there
-  // throws MissingPluginException and leaves the screen black.
   if (isDesktopPlatform) {
     await _bootstrapDesktop();
   }
@@ -159,8 +256,9 @@ void main() async {
     await taskService.reloadForUser(userId);
   });
 
-  StartupLog.mark('runApp');
-  runApp(SuperNoteApp(
+  StartupLog.mark('services-ready');
+  await StartupLog.initVisible();
+  return BootstrapServices(
     noteService: noteService,
     syncService: syncService,
     taskService: taskService,
@@ -170,35 +268,25 @@ void main() async {
     updateService: updateService,
     customBackgroundService: customBackgroundService,
     languageService: languageService,
-  ));
+  );
 }
 
-class SuperNoteApp extends StatelessWidget {
-  final NoteService noteService;
-  final SyncService syncService;
-  final TaskService taskService;
-  final AuthService authService;
-  final GeminiService geminiService;
-  final ThemeService themeService;
-  final AutoUpdateService updateService;
-  final CustomBackgroundService? customBackgroundService;
-  final LanguageService languageService;
-
-  const SuperNoteApp({
-    super.key,
-    required this.noteService,
-    required this.syncService,
-    required this.taskService,
-    required this.authService,
-    required this.geminiService,
-    required this.themeService,
-    required this.updateService,
-    this.customBackgroundService,
-    required this.languageService,
-  });
+class SuperNoteAppShell extends StatelessWidget {
+  final BootstrapServices services;
+  const SuperNoteAppShell({super.key, required this.services});
 
   @override
   Widget build(BuildContext context) {
+    final noteService = services.noteService;
+    final syncService = services.syncService;
+    final taskService = services.taskService;
+    final authService = services.authService;
+    final geminiService = services.geminiService;
+    final themeService = services.themeService;
+    final updateService = services.updateService;
+    final customBackgroundService = services.customBackgroundService;
+    final languageService = services.languageService;
+
     return ListenableBuilder(
       listenable: Listenable.merge([themeService, languageService]),
       builder: (context, _) {

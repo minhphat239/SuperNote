@@ -79,6 +79,7 @@ class _NlpInputBarState extends State<NlpInputBar> with SingleTickerProviderStat
 
     if (canUseGemini) {
       final hasInternet = await _checkInternet();
+      if (!mounted) return;
       if (hasInternet) {
         setState(() => _isProcessing = true);
         if (!mounted) return;

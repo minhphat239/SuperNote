@@ -64,13 +64,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final (qs, qe) = await _notifService.getQuietHours();
-    final defPre = await _notifService.getDefaultPreReminder();
-    setState(() {
-      _quietStart = qs;
-      _quietEnd = qe;
-      _defaultPreReminder = defPre;
-    });
+    try {
+      final (qs, qe) = await _notifService.getQuietHours();
+      if (!mounted) return;
+      final defPre = await _notifService.getDefaultPreReminder();
+      if (!mounted) return;
+      setState(() {
+        _quietStart = qs;
+        _quietEnd = qe;
+        _defaultPreReminder = defPre;
+      });
+    } catch (_) {
+      // ignore — keep defaults
+    }
   }
 
   @override
