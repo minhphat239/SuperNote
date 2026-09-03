@@ -34,19 +34,48 @@ class StartupLog {
     }
   }
 
-  /// Migrate to a more user-visible location when plugins are available.
+  /// Migrate to a user-visible location (Documents/SuperNote/) so the log
+  /// can be found in any file manager without adb/root.
   static Future<void> initVisible() async {
     try {
-      final ext = await getExternalStorageDirectory();
-      final dir = (ext != null && await ext.exists()) ? ext : null;
-      if (dir == null) return; // keep the systemTemp file
-      final visibleFile = File('${dir.path}/startup_log.txt');
+      // On Android 11+, check MANAGE_EXTERNAL_STORAGE permission
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        const channel = MethodChannel('com.example.super_note/storage');
+        try {
+          final granted = await channel.invokeMethod<bool>('isManageStorageGranted') ?? false;
+          if (!granted) {
+            debugPrint('STARTUP_LOG: MANAGE_EXTERNAL_STORAGE not granted, requesting...');
+            await channel.invokeMethod('requestManageStorage');
+            // Give user time to grant, then try again
+            await Future.delayed(const Duration(seconds: 2));
+          }
+        } catch (e) {
+          debugPrint('STARTUP_LOG: permission check failed: $e');
+        }
+      }
+
+      // Write directly to public Documents dir — visible in all file managers
+      final publicDir = Directory('/storage/emulated/0/Documents/SuperNote');
+      if (!await publicDir.exists()) {
+        await publicDir.create(recursive: true);
+      }
+      final visibleFile = File('${publicDir.path}/startup_log.txt');
       if (await visibleFile.exists()) {
         await visibleFile.delete();
       }
       _instance._file = visibleFile;
-    } catch (_) {
-      // keep systemTemp file
+      debugPrint('STARTUP_LOG file: ${visibleFile.path}');
+    } catch (e) {
+      debugPrint('STARTUP_LOG initVisible failed: $e');
+      // Fallback: try getExternalStorageDirectory
+      try {
+        final ext = await getExternalStorageDirectory();
+        if (ext != null && await ext.exists()) {
+          final visibleFile = File('${ext.path}/startup_log.txt');
+          if (await visibleFile.exists()) await visibleFile.delete();
+          _instance._file = visibleFile;
+        }
+      } catch (_) {}
     }
   }
 
