@@ -72,21 +72,23 @@ class _AuthScreenState extends State<AuthScreen>
   // ==================== GOOGLE ====================
   Future<void> _signInWithGoogle() async {
     if (_isLoading) return;
+    debugPrint('=== GOOGLE SIGN IN START ===');
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
       final success = await widget.authService.signInWithGoogle();
+      debugPrint('Google sign in result: $success');
       if (!mounted) return;
       if (!success) {
         setState(() {
-          _error = AppLocalizations.of(context)!.authGoogleCancelled;
+          _error = widget.authService.errorMessage ?? 'Đăng nhập Google thất bại.';
           _isLoading = false;
         });
       }
-      // On success, authStateChanges stream auto-navigates to MainShell
     } catch (e) {
+      debugPrint('Google sign in exception: $e');
       if (!mounted) return;
       setState(() {
         _error = _friendlyError(e, context);
@@ -127,20 +129,32 @@ class _AuthScreenState extends State<AuthScreen>
     });
 
     try {
+      bool success;
       if (_isLogin) {
-        await widget.authService.signInWithEmail(
+        debugPrint('=== EMAIL LOGIN START ===');
+        success = await widget.authService.signInWithEmail(
           _emailController.text.trim(),
           _passController.text,
         );
       } else {
-        await widget.authService.registerWithEmail(
+        debugPrint('=== EMAIL REGISTER START ===');
+        success = await widget.authService.registerWithEmail(
           _emailController.text.trim(),
           _passController.text,
           _nameController.text.trim(),
         );
       }
+      debugPrint('Email auth result: $success, error: ${widget.authService.errorMessage}');
+      if (!mounted) return;
+      if (!success) {
+        setState(() {
+          _error = widget.authService.errorMessage ?? 'Đăng nhập thất bại.';
+          _isLoading = false;
+        });
+      }
       // On success, authStateChanges stream auto-navigates to MainShell
     } catch (e) {
+      debugPrint('Email auth exception: $e');
       if (!mounted) return;
       setState(() {
         _error = _friendlyError(e, context);
@@ -157,13 +171,25 @@ class _AuthScreenState extends State<AuthScreen>
       _error = null;
     });
     try {
-      await widget.authService.signInAsLocal();
+      final success = await widget.authService.signInAsLocal();
+      if (!mounted) return;
+      if (!success) {
+        setState(() {
+          _error = widget.authService.errorMessage ?? 'Đăng nhập thất bại. Vui lòng thử lại.';
+          _isLoading = false;
+        });
+      }
+      // If success, StreamBuilder in main.dart will handle navigation
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = _friendlyError(e, context);
         _isLoading = false;
       });
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

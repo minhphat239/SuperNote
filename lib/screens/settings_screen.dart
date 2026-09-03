@@ -246,29 +246,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final user = widget.authService.user;
       final isLoggedIn = widget.authService.isLoggedIn;
+      final isLocalGuest = widget.authService.isLocalGuest;
+      final displayName = user?.displayName ?? (isLocalGuest ? 'Khách' : null);
+      final photoUrl = user?.photoURL;
+      final email = user?.email;
 
       return _buildCard([
-        if (isLoggedIn && user != null) ...[
+        if (isLoggedIn) ...[
           ListTile(
             leading: CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
               backgroundImage:
-                  user.photoURL != null ? NetworkImage(user.photoURL!) : null,
-              child: user.photoURL == null
+                  photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null
                   ? Text(
-                      (user.displayName ?? user.email ?? '?')[0].toUpperCase(),
+                      (displayName ?? email ?? '?')[0].toUpperCase(),
                       style: TextStyle(
                           color: AppColors.primary, fontWeight: FontWeight.w700),
                     )
                   : null,
             ),
             title: Text(
-              user.displayName ?? (user.isAnonymous ? AppLocalizations.of(context)!.accountGuest : 'User'),
+              displayName ?? (isLocalGuest ? AppLocalizations.of(context)!.accountGuest : 'User'),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              user.isAnonymous ? AppLocalizations.of(context)!.accountNoSync : (user.email ?? ''),
+              isLocalGuest || user?.isAnonymous == true ? AppLocalizations.of(context)!.accountNoSync : (email ?? ''),
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ),

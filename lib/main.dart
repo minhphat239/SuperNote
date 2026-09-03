@@ -251,6 +251,11 @@ Future<BootstrapServices> _initServices() async {
 
   StartupLog.mark('auth-init');
   final authService = AuthService();
+  try {
+    await authService.init();
+  } catch (e) {
+    debugPrint('[Main] AuthService init error: $e');
+  }
   StartupLog.mark('storage-init');
   final storageService = StorageService(authService: authService);
   try {
@@ -407,21 +412,12 @@ class SuperNoteAppShell extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Scaffold(
-                  backgroundColor: AppColors.background,
-                  body: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                );
-              }
+          home: ListenableBuilder(
+            listenable: authService,
+            builder: (context, _) {
+              final isLoggedIn = authService.isLoggedIn;
 
-              final user = snapshot.data;
-
-              if (user != null) {
+              if (isLoggedIn) {
                 return MainShell(
                   noteService: noteService,
                   syncService: syncService,

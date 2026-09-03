@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:developer' as developer;
 
 import 'firestore_repository.dart';
 
@@ -16,26 +15,50 @@ class AuthService extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isLocalGuest = false;
 
   User? get user => _user;
-  bool get isLoggedIn => _user != null;
+  bool get isLoggedIn => _user != null || _isLocalGuest;
   bool get isLoading => _isLoading;
-  String? get userId => _user?.uid;
-  String? get userName => _user?.displayName;
+  bool get isLocalGuest => _isLocalGuest;
+  String? get userId => _user?.uid ?? (_isLocalGuest ? _localGuestId : null);
+  String? get userName => _user?.displayName ?? (_isLocalGuest ? 'Khách' : null);
   String? get userEmail => _user?.email;
   String? get userPhoto => _user?.photoURL;
   String? get errorMessage => _errorMessage;
+  String? _localGuestId;
 
   Stream<bool> get authStateChanges => _authStreamController.stream;
 
-  AuthService() {
+  Future<void> init() async {
     _authSubscription = _auth.authStateChanges().listen((user) {
-      _user = user;
-      _authStreamController.add(user != null);
-      notifyListeners();
+      if (!_isLocalGuest) {
+        _user = user;
+        _authStreamController.add(user != null);
+        notifyListeners();
+      }
     }, onError: (Object e) {
-      developer.log('Auth state stream error', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Auth state stream error: $e');
     });
+    await _restoreLocalGuest();
+  }
+
+  Future<void> _restoreLocalGuest() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isGuest = prefs.getBool('local_guest') ?? false;
+      final guestId = prefs.getString('guest_id');
+      if (isGuest && guestId != null) {
+        _isLocalGuest = true;
+        _localGuestId = guestId;
+        _authStreamController.add(true);
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('[AuthService] Restore local guest failed: $e');
+    }
+    _authStreamController.add(false);
   }
 
   void _setLoading(bool value) {
@@ -101,8 +124,8 @@ class AuthService extends ChangeNotifier {
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn()
           .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => throw Exception('Kết nối Google quá thời gian. Vui lòng thử lại!'),
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException('Kết nối Google quá thời gian. Vui lòng thử lại!'),
           );
       if (googleUser == null) {
         _setLoading(false);
@@ -118,8 +141,8 @@ class AuthService extends ChangeNotifier {
 
       final userCredential = await _auth.signInWithCredential(credential)
           .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => throw Exception('Xác thực Firebase quá thời gian. Vui lòng thử lại!'),
+            const Duration(seconds: 15),
+            onTimeout: () => throw TimeoutException('Xác thực Firebase quá thời gian. Vui lòng thử lại!'),
           );
 
       if (userCredential.additionalUserInfo?.isNewUser == true) {
@@ -134,15 +157,15 @@ class AuthService extends ChangeNotifier {
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(parseAuthError(e));
-      developer.log('Google sign in failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Google sign in failed: $e');
       return false;
     } on TimeoutException catch (e) {
       _setError(e.toString());
-      developer.log('Google sign in timeout', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Google sign in timeout: $e');
       return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
-      developer.log('Google sign in failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Google sign in failed: $e');
       return false;
     }
   }
@@ -154,21 +177,21 @@ class AuthService extends ChangeNotifier {
         email: email.trim(),
         password: password,
       ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
       );
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(parseAuthError(e));
-      developer.log('Email sign in failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Email sign in failed: $e');
       return false;
     } on TimeoutException catch (e) {
       _setError(e.toString());
-      developer.log('Email sign in timeout', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Email sign in timeout: $e');
       return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
-      developer.log('Email sign in failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Email sign in failed: $e');
       return false;
     }
   }
@@ -181,8 +204,8 @@ class AuthService extends ChangeNotifier {
         email: email.trim(),
         password: password,
       ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
       );
 
       await result.user?.updateDisplayName(name);
@@ -200,15 +223,15 @@ class AuthService extends ChangeNotifier {
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(parseAuthError(e));
-      developer.log('Register failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Register failed: $e');
       return false;
     } on TimeoutException catch (e) {
       _setError(e.toString());
-      developer.log('Register timeout', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Register timeout: $e');
       return false;
     } catch (e) {
       _setError('Lỗi không xác định. Vui lòng thử lại.');
-      developer.log('Register failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Register failed: $e');
       return false;
     }
   }
@@ -218,20 +241,41 @@ class AuthService extends ChangeNotifier {
       _setLoading(true);
       await _auth.signInAnonymously().timeout(
         const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Kết nối Firebase quá thời gian. Kiểm tra Internet và thử lại!'),
+        onTimeout: () => throw TimeoutException('Firebase timeout'),
       );
       return true;
     } on FirebaseAuthException catch (e) {
-      _setError(parseAuthError(e));
-      developer.log('Anonymous sign in failed', error: e, name: 'AuthService');
-      return false;
+      debugPrint('[AuthService] Anonymous sign in failed: $e');
+      return _signInAsLocalFallback();
     } on TimeoutException catch (e) {
-      _setError(e.toString());
-      developer.log('Anonymous sign in timeout', error: e, name: 'AuthService');
-      return false;
+      debugPrint('[AuthService] Anonymous sign in timeout, falling back to local');
+      return _signInAsLocalFallback();
+    } catch (e, stackTrace) {
+      debugPrint('[AuthService] signInAsLocal FAILED: ${e.runtimeType}: $e');
+      return _signInAsLocalFallback();
+    }
+  }
+
+  Future<bool> _signInAsLocalFallback() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var guestId = prefs.getString('guest_id');
+      if (guestId == null) {
+        guestId = 'local_guest_${DateTime.now().millisecondsSinceEpoch}';
+        await prefs.setString('guest_id', guestId);
+      }
+      await prefs.setBool('local_guest', true);
+      _isLocalGuest = true;
+      _localGuestId = guestId;
+      _authStreamController.add(true);
+      _isLoading = false;
+      _errorMessage = null;
+      notifyListeners();
+      debugPrint('[AuthService] Local guest sign-in OK: $guestId');
+      return true;
     } catch (e) {
-      _setError('Lỗi không xác định. Vui lòng thử lại.');
-      developer.log('Anonymous sign in failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Local fallback failed: $e');
+      _setError('Không thể đăng nhập. Vui lòng thử lại.');
       return false;
     }
   }
@@ -239,12 +283,20 @@ class AuthService extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       _setLoading(true);
-      await _googleSignIn.signOut();
-      await _auth.signOut();
+      if (_isLocalGuest) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('local_guest');
+        await prefs.remove('guest_id');
+      } else {
+        await _googleSignIn.signOut();
+        await _auth.signOut();
+      }
     } catch (e) {
-      developer.log('Sign out failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Sign out failed: $e');
     } finally {
       _user = null;
+      _isLocalGuest = false;
+      _localGuestId = null;
       _errorMessage = null;
       _authStreamController.add(false);
       notifyListeners();
@@ -256,9 +308,11 @@ class AuthService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
     } catch (e) {
-      developer.log('Clear session failed', error: e, name: 'AuthService');
+      debugPrint('[AuthService] Clear session failed: $e');
     }
     _user = null;
+    _isLocalGuest = false;
+    _localGuestId = null;
     _errorMessage = null;
     _authStreamController.add(false);
     notifyListeners();
@@ -266,6 +320,8 @@ class AuthService extends ChangeNotifier {
 
   void syncFromFirebase(User? user) {
     _user = user;
+    _isLocalGuest = false;
+    _localGuestId = null;
     _authStreamController.add(user != null);
     notifyListeners();
   }
