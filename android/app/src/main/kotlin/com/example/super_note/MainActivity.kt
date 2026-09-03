@@ -13,6 +13,8 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Date
+import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,12 +23,21 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.super_note/storage"
     private val TAG = "SuperNote"
 
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        Log.i(TAG, "attachBaseContext: START")
+        writeLogToFile("attachBaseContext: START")
+        super.attachBaseContext(newBase)
+        writeLogToFile("attachBaseContext: END")
+        Log.i(TAG, "attachBaseContext: END")
+    }
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        // Install native crash handler BEFORE anything else
+        Log.i(TAG, "onCreate: START")
+        writeLogToFile("onCreate: START")
         installCrashHandler()
-        Log.i(TAG, "onCreate: starting...")
         super.onCreate(savedInstanceState)
-        Log.i(TAG, "onCreate: super completed")
+        writeLogToFile("onCreate: END")
+        Log.i(TAG, "onCreate: END")
     }
 
     private fun installCrashHandler() {
@@ -116,5 +127,17 @@ class MainActivity : FlutterActivity() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
+    }
+
+    private fun writeLogToFile(text: String) {
+        try {
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "SuperNote")
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, "startup_log.txt")
+            val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US).format(java.util.Date())
+            file.appendText("[$ts] $text\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "writeLogToFile failed: $e")
+        }
     }
 }
