@@ -247,9 +247,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final user = widget.authService.user;
       final isLoggedIn = widget.authService.isLoggedIn;
       final isLocalGuest = widget.authService.isLocalGuest;
-      final displayName = user?.displayName ?? (isLocalGuest ? 'Khách' : null);
+      final displayName = (user?.displayName?.isNotEmpty == true ? user!.displayName : null)
+          ?? (isLocalGuest ? 'Khách' : null) ?? '';
       final photoUrl = user?.photoURL;
-      final email = user?.email;
+      final email = (user?.email?.isNotEmpty == true ? user!.email : null) ?? '';
+      final initial = (displayName.isNotEmpty ? displayName : email.isNotEmpty ? email : '?')[0].toUpperCase();
 
       return _buildCard([
         if (isLoggedIn) ...[
@@ -261,18 +263,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   photoUrl != null ? NetworkImage(photoUrl) : null,
               child: photoUrl == null
                   ? Text(
-                      (displayName ?? email ?? '?')[0].toUpperCase(),
+                      initial,
                       style: TextStyle(
                           color: AppColors.primary, fontWeight: FontWeight.w700),
                     )
                   : null,
             ),
             title: Text(
-              displayName ?? (isLocalGuest ? AppLocalizations.of(context)!.accountGuest : 'User'),
+              displayName.isNotEmpty ? displayName : (isLocalGuest ? AppLocalizations.of(context)!.accountGuest : email.isNotEmpty ? email : 'User'),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
-              isLocalGuest || user?.isAnonymous == true ? AppLocalizations.of(context)!.accountNoSync : (email ?? ''),
+              isLocalGuest || user?.isAnonymous == true ? AppLocalizations.of(context)!.accountNoSync : email,
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
           ),
@@ -294,8 +296,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ]);
-    } catch (e) {
-      // Fallback if AuthService not ready
+    } catch (e, stackTrace) {
+      debugPrint('[Settings] _buildAccountCard error: $e');
+      debugPrint('[Settings] StackTrace: $stackTrace');
       return _buildCard([
         _buildTapTile(
           icon: Icons.person_outline_rounded,
