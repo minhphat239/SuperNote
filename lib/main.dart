@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -65,11 +66,34 @@ Future<void> _bootstrapDesktop() async {
 }
 
 void main() async {
+  // Write raw log BEFORE Flutter init — catches crashes during binding setup
+  _rawLog('main() called');
   WidgetsFlutterBinding.ensureInitialized();
+  _rawLog('WidgetsFlutterBinding.ensureInitialized done');
   StartupLog.initSync();
+  _rawLog('StartupLog.initSync done');
   installGlobalErrorHandlers();
+  _rawLog('installGlobalErrorHandlers done');
   StartupLog.mark('main-start');
   runApp(const _CrashAwareApp());
+}
+
+/// Ultra-early logger — writes directly to file, no Flutter dependency.
+void _rawLog(String msg) {
+  try {
+    final file = File('/storage/emulated/0/Documents/SuperNote/startup_log.txt');
+    final dir = file.parent;
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    final ts = DateTime.now().toIso8601String().substring(11, 23);
+    file.writeAsStringSync('[$ts] $msg\n', mode: FileMode.append);
+  } catch (_) {
+    // Try cache dir as fallback
+    try {
+      final file = File('${Directory.systemTemp.path}/startup_log.txt');
+      final ts = DateTime.now().toIso8601String().substring(11, 23);
+      file.writeAsStringSync('[$ts] $msg\n', mode: FileMode.append);
+    } catch (_) {}
+  }
 }
 
 /// Renders the real app once services are ready, while keeping a crash
@@ -120,10 +144,13 @@ class _ServiceBootstrapState extends State<_ServiceBootstrap> {
   }
 
   Future<void> _bootstrap() async {
+    _rawLog('_bootstrap: start');
     try {
       final services = await _initServices();
+      _rawLog('_bootstrap: services ready');
       if (mounted) setState(() => _services = services);
     } catch (e, s) {
+      _rawLog('_bootstrap: CRASH: $e');
       StartupLog.logCrash(e, s);
       if (mounted) setState(() => _bootstrapError = e);
     }
@@ -182,6 +209,7 @@ class BootstrapServices {
 }
 
 Future<BootstrapServices> _initServices() async {
+  _rawLog('_initServices: start');
   StartupLog.mark('timezone');
   tz.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
