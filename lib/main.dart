@@ -187,19 +187,30 @@ Future<BootstrapServices> _initServices() async {
   tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
   try {
+    StartupLog.mark('firebase-init');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     ).timeout(const Duration(seconds: 10));
+    StartupLog.mark('firebase-ready');
   } catch (e) {
-    // Never block startup on Firebase — app continues in local-only mode.
+    StartupLog.logCrash(e, StackTrace.current);
     debugPrint('Firebase init skipped/failed: $e');
   }
   StartupLog.mark('firebase');
-  await initializeDateFormatting('vi', null);
+
+  try {
+    StartupLog.mark('dateformat-init');
+    await initializeDateFormatting('vi', null);
+    StartupLog.mark('dateformat-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('dateformat');
 
   if (isDesktopPlatform) {
+    StartupLog.mark('desktop-init');
     await _bootstrapDesktop();
+    StartupLog.mark('desktop-ready');
   }
   StartupLog.mark('desktop');
 
@@ -210,67 +221,117 @@ Future<BootstrapServices> _initServices() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
 
+  StartupLog.mark('auth-init');
   final authService = AuthService();
+  StartupLog.mark('storage-init');
   final storageService = StorageService(authService: authService);
-  await storageService.init();
+  try {
+    await storageService.init();
+    StartupLog.mark('storage-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('storage');
 
+  StartupLog.mark('noteService-init');
   final noteService = NoteService(storageService);
+  StartupLog.mark('syncService-init');
   final syncService = SyncService(noteService);
+  StartupLog.mark('taskService-init');
   final taskService = TaskService(authService: authService);
-  await taskService.init();
+  try {
+    await taskService.init();
+    StartupLog.mark('taskService-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('task-service');
 
+  StartupLog.mark('geminiService-init');
   final geminiService = GeminiService();
-  await geminiService.init();
+  try {
+    await geminiService.init();
+    StartupLog.mark('geminiService-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('gemini');
 
+  StartupLog.mark('themeService-init');
   final themeService = ThemeService();
-  await themeService.init();
+  try {
+    await themeService.init();
+    StartupLog.mark('themeService-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('theme');
 
   CustomBackgroundService? customBackgroundService;
   try {
+    StartupLog.mark('customBgService-init');
     customBackgroundService = CustomBackgroundService();
     await customBackgroundService.init();
-  } catch (_) {
-    // CustomBackgroundService may not be available
+    StartupLog.mark('customBgService-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
   }
   StartupLog.mark('custom-bg');
 
+  StartupLog.mark('autoUpdateService-init');
   final updateService = AutoUpdateService();
+  StartupLog.mark('autoUpdateService-ready');
 
   // ===== BACKEND SERVICES =====
   try {
+    StartupLog.mark('firestore-init');
     await FirestoreRepository().init();
-  } catch (_) {
-    // Firestore may not be available — app continues with local-only mode
+    StartupLog.mark('firestore-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
   }
   StartupLog.mark('firestore');
 
   try {
+    StartupLog.mark('feedback-init');
     await FeedbackService().init();
-  } catch (_) {}
+    StartupLog.mark('feedback-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('feedback');
 
   try {
+    StartupLog.mark('aiParser-init');
     await AiParserService().init();
-  } catch (_) {}
+    StartupLog.mark('aiParser-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('ai-parser');
 
+  StartupLog.mark('languageService-init');
   final languageService = LanguageService();
-  await languageService.init();
+  try {
+    await languageService.init();
+    StartupLog.mark('languageService-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
   StartupLog.mark('language');
 
   // Listen to auth changes → reload per-user data
+  StartupLog.mark('authListener-init');
   authService.authStateChanges.listen((isLoggedIn) async {
     final userId = isLoggedIn ? authService.userId : null;
     await storageService.reloadForUser(userId);
     await taskService.reloadForUser(userId);
   });
+  StartupLog.mark('authListener-ready');
 
   StartupLog.mark('services-ready');
   await StartupLog.initVisible();
+  StartupLog.mark('initVisible-done');
   return BootstrapServices(
     noteService: noteService,
     syncService: syncService,

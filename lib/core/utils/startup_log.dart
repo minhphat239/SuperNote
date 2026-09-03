@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Startup profiler + global crash catcher.
@@ -116,12 +117,22 @@ void installGlobalErrorHandlers() {
 class CrashOverlay extends StatelessWidget {
   const CrashOverlay({super.key});
 
+  String _logPath() {
+    try {
+      // Return the external storage path if available
+      return StartupLog._instance._file?.path ?? 'N/A';
+    } catch (_) {
+      return 'N/A';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String?>(
       valueListenable: crashMessage,
       builder: (context, message, _) {
         if (message == null) return const SizedBox.shrink();
+        final logPath = _logPath();
         return Material(
           color: const Color(0xE61E1B1B),
           child: SafeArea(
@@ -130,12 +141,18 @@ class CrashOverlay extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('⚠️ CRASH',
+                  const Text('CRASH',
                       style: TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
                           fontSize: 18)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
+                  Text('Log: $logPath',
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontFamily: 'monospace')),
+                  const SizedBox(height: 8),
                   Expanded(
                     child: SingleChildScrollView(
                       child: SelectableText(
@@ -148,13 +165,23 @@ class CrashOverlay extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => crashMessage.value = null,
-                      child: const Text('Close',
-                          style: TextStyle(color: Colors.red)),
-                    ),
+                    Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          final text = 'Log: $logPath\n\n$message';
+                          Clipboard.setData(ClipboardData(text: text));
+                        },
+                        child: const Text('Copy log',
+                            style: TextStyle(color: Colors.orange)),
+                      ),
+                      TextButton(
+                        onPressed: () => crashMessage.value = null,
+                        child: const Text('Close',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
                   ),
                 ],
               ),
