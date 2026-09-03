@@ -13,8 +13,6 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.Date
-import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

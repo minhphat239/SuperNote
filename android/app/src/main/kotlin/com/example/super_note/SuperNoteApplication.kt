@@ -3,6 +3,8 @@ package com.example.super_note
 import android.app.Application
 import android.os.Environment
 import android.util.Log
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -10,7 +12,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class SuperNoteApplication : Application() {
+class SuperNoteApplication : Application(), Configuration.Provider {
     companion object {
         private const val TAG = "SuperNote"
     }
@@ -18,16 +20,16 @@ class SuperNoteApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Application.onCreate: START")
-
-        // Write immediately
         writeLog("Application.onCreate: START")
-
-        // Install crash handler as early as possible
         installCrashHandler()
-
         writeLog("Application.onCreate: END")
         Log.i(TAG, "Application.onCreate: END")
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
 
     private fun installCrashHandler() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -46,11 +48,8 @@ class SuperNoteApplication : Application() {
                     """.trimMargin()
 
                 Log.e(TAG, crashText)
-
-                // Write to Documents/SuperNote/
                 writeLog(crashText)
 
-                // Also write to cache (always works)
                 try {
                     val file = File(cacheDir, "crash_log.txt")
                     file.appendText("$crashText\n")
@@ -58,7 +57,6 @@ class SuperNoteApplication : Application() {
 
             } catch (_: Exception) {}
 
-            // Let the default handler show the crash dialog
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }
