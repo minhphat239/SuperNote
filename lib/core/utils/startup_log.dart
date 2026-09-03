@@ -20,8 +20,7 @@ class StartupLog {
   /// Best-effort earliest capture: synchronous, no plugins needed.
   static void initSync() {
     try {
-      // Android: <pkg>/files (app documents). systemTemp is available before
-      // any plugin call and maps to the app cache dir on Android.
+      // Always write to temp dir (no permission needed)
       final tmp = Directory.systemTemp;
       if (tmp.existsSync()) {
         _instance._file = File('${tmp.path}/startup_log.txt');
@@ -32,29 +31,37 @@ class StartupLog {
     } catch (_) {
       _instance._file = null;
     }
+    // Also try to write to Documents dir directly (may fail without permission)
+    try {
+      final publicDir = Directory('/storage/emulated/0/Documents/SuperNote');
+      if (!publicDir.existsSync()) {
+        publicDir.createSync(recursive: true);
+      }
+      final pubFile = File('${publicDir.path}/startup_log.txt');
+      if (pubFile.existsSync()) pubFile.deleteSync();
+      // Write initial marker
+      pubFile.writeAsStringSync('=== SuperNote Startup Log ===\n');
+    } catch (_) {}
   }
 
   /// Migrate to a user-visible location (Documents/SuperNote/) so the log
   /// can be found in any file manager without adb/root.
   static Future<void> initVisible() async {
     try {
-      // On Android 11+, check MANAGE_EXTERNAL_STORAGE permission
+      // Non-blocking permission request on Android 11+
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         const channel = MethodChannel('com.example.super_note/storage');
-        try {
-          final granted = await channel.invokeMethod<bool>('isManageStorageGranted') ?? false;
-          if (!granted) {
-            debugPrint('STARTUP_LOG: MANAGE_EXTERNAL_STORAGE not granted, requesting...');
-            await channel.invokeMethod('requestManageStorage');
-            // Give user time to grant, then try again
-            await Future.delayed(const Duration(seconds: 2));
+        channel.invokeMethod<bool>('isManageStorageGranted').then((granted) {
+          if (granted != true) {
+            debugPrint('STARTUP_LOG: requesting MANAGE_EXTERNAL_STORAGE...');
+            channel.invokeMethod('requestManageStorage');
           }
-        } catch (e) {
+        }).catchError((e) {
           debugPrint('STARTUP_LOG: permission check failed: $e');
-        }
+        });
       }
 
-      // Write directly to public Documents dir — visible in all file managers
+      // Write to public Documents dir
       final publicDir = Directory('/storage/emulated/0/Documents/SuperNote');
       if (!await publicDir.exists()) {
         await publicDir.create(recursive: true);
@@ -67,7 +74,7 @@ class StartupLog {
       debugPrint('STARTUP_LOG file: ${visibleFile.path}');
     } catch (e) {
       debugPrint('STARTUP_LOG initVisible failed: $e');
-      // Fallback: try getExternalStorageDirectory
+      // Fallback
       try {
         final ext = await getExternalStorageDirectory();
         if (ext != null && await ext.exists()) {
@@ -85,6 +92,11 @@ class StartupLog {
     _instance._lines.add(line);
     debugPrint('STARTUP_LOG $line');
     _instance._write(line);
+    // Also write to Documents dir directly
+    try {
+      final pubFile = File('/storage/emulated/0/Documents/SuperNote/startup_log.txt');
+      pubFile.writeAsStringSync('$line\n', mode: FileMode.append);
+    } catch (_) {}
   }
 
   static void logCrash(Object error, StackTrace? stack) {
@@ -98,10 +110,30 @@ class StartupLog {
       debugPrint('STARTUP_LOG $l');
     }
     _instance._lines.addAll(lines);
+    // Write to current file
     _instance._file?.writeAsStringSync(
       '${lines.join('\n')}\n',
       mode: FileMode.append,
     );
+    // Also try to write to Documents dir directly (in case visible file not set yet)
+    try {
+      final publicDir = Directory('/storage/emulated/0/Documents/SuperNote');
+      if (publicDir.existsSync()) {
+        final crashFile = File('${publicDir.path}/startup_log.txt');
+        crashFile.writeAsStringSync(
+          '${lines.join('\n')}\n',
+          mode: FileMode.append,
+        );
+      }
+    } catch (_) {}
+    // Also write to temp dir (always works, no permission needed)
+    try {
+      final tmpFile = File('${Directory.systemTemp.path}/startup_log.txt');
+      tmpFile.writeAsStringSync(
+        '${lines.join('\n')}\n',
+        mode: FileMode.append,
+      );
+    } catch (_) {}
   }
 
   void _write(String line) {
