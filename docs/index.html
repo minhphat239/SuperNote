@@ -219,6 +219,67 @@
         .a-link:hover{background:rgba(59,130,246,0.1);border-color:var(--accent);box-shadow:0 0 20px rgba(59,130,246,0.15);transform:scale(1.04)}
         .a-link svg{width:14px;height:14px;flex-shrink:0}
 
+        /* ===== DOWNLOAD SECTION ===== */
+        .dl-card{
+            max-width:520px;margin:0 auto;position:relative;
+            background:var(--card);backdrop-filter:blur(20px) saturate(200%);
+            border-radius:28px;padding:48px 36px;text-align:center;
+            overflow:hidden;border:1px solid transparent;
+        }
+        .dl-card::before{
+            content:'';position:absolute;inset:-1px;border-radius:29px;
+            background:linear-gradient(135deg,rgba(16,185,129,0.5),rgba(59,130,246,0.4),rgba(139,92,246,0.4));
+            z-index:-1;opacity:.5;
+        }
+        .dl-card::after{
+            content:'';position:absolute;top:0;left:0;right:0;height:1px;
+            background:linear-gradient(90deg,transparent,var(--green),var(--accent),transparent);
+        }
+        .dl-glow{
+            position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+            width:300px;height:300px;border-radius:50%;
+            background:radial-gradient(circle,rgba(16,185,129,0.12) 0%,transparent 70%);
+            pointer-events:none;
+        }
+        .dl-icon{
+            font-size:3rem;margin-bottom:12px;
+            animation:dlBounce 2s ease-in-out infinite;
+        }
+        @keyframes dlBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        .dl-ver{
+            display:inline-block;padding:4px 14px;border-radius:50px;
+            background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);
+            color:var(--green);font-size:.75rem;font-weight:700;margin-bottom:16px;
+        }
+        .dl-title{font-size:1.6rem;font-weight:800;margin-bottom:10px}
+        .dl-desc{color:var(--t2);font-size:.9rem;margin-bottom:20px;line-height:1.6}
+        .dl-info{
+            display:flex;gap:16px;justify-content:center;flex-wrap:wrap;
+            margin-bottom:24px;font-size:.78rem;color:var(--t3);
+        }
+        .dl-btn{
+            display:inline-flex;align-items:center;justify-content:center;
+            padding:16px 40px;border-radius:16px;font-size:1rem;font-weight:700;
+            color:#fff;text-decoration:none;position:relative;overflow:hidden;
+            background:linear-gradient(135deg,var(--green),#059669);
+            box-shadow:0 4px 24px rgba(16,185,129,0.3);
+            transition:all .3s;cursor:pointer;
+        }
+        .dl-btn:hover{
+            transform:translateY(-3px) scale(1.03);
+            box-shadow:0 8px 40px rgba(16,185,129,0.4);
+        }
+        .dl-btn-shine{
+            position:absolute;top:0;left:-100%;width:100%;height:100%;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+            transition:left .6s;
+        }
+        .dl-btn:hover .dl-btn-shine{left:100%}
+        .dl-btn-text{position:relative;z-index:1}
+        .dl-note{margin-top:18px;font-size:.78rem;color:var(--t3)}
+        .dl-note a{color:var(--accent);text-decoration:none}
+        .dl-note a:hover{text-decoration:underline}
+
         /* ===== FOOTER ===== */
         footer{text-align:center;padding:40px 2rem;color:var(--t3);font-size:.78rem;border-top:1px solid rgba(255,255,255,0.04);position:relative;z-index:1}
         footer a{color:var(--accent);text-decoration:none}
@@ -308,7 +369,7 @@
             <span class="htag">Glassmorphism</span>
         </div>
         <div class="hero-btns">
-            <a href="https://github.com/minhphat239/SuperNote/releases/latest" target="_blank" class="btn btn-p">&#11015; Tải APK</a>
+            <a href="https://github.com/minhphat239/SuperNote/releases/download/v1.0.5/app-release.apk" class="btn btn-p">&#11015; Tải APK v1.0.5</a>
             <a href="https://github.com/minhphat239/SuperNote" target="_blank" class="btn btn-s">Xem mã nguồn</a>
         </div>
     </div>
@@ -508,6 +569,29 @@
 </section>
 
 <div class="glow-divider"></div>
+
+<!-- Download -->
+<section id="download" style="padding:80px 2rem">
+    <div class="container sec-center">
+        <div class="dl-card reveal">
+            <div class="dl-glow"></div>
+            <div class="dl-icon">&#128229;</div>
+            <div class="dl-ver">v1.0.5+6</div>
+            <h2 class="dl-title">Tải SuperNote ngay</h2>
+            <p class="dl-desc">Phiên bản mới nhất với fix crash update dialog, kiểm tra update mỗi lần mở app và giao diện được tối ưu.</p>
+            <div class="dl-info">
+                <span>&#128230; app-release.apk</span>
+                <span>&#128207; 69.8 MB</span>
+                <span>&#128241; Android 5.0+</span>
+            </div>
+            <a href="https://github.com/minhphat239/SuperNote/releases/download/v1.0.5/app-release.apk" class="dl-btn">
+                <span class="dl-btn-text">&#11015; Tải xuống ngay</span>
+                <span class="dl-btn-shine"></span>
+            </a>
+            <p class="dl-note">Hoặc xem tất cả bản phát hành trên <a href="https://github.com/minhphat239/SuperNote/releases" target="_blank">GitHub Releases</a></p>
+        </div>
+    </div>
+</section>
 
 <!-- Admin -->
 <section id="admin" class="admin-sec">
