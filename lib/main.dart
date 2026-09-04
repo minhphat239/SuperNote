@@ -638,25 +638,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   Future<void> _checkForUpdates() async {
     try {
-      final shouldCheck = await widget.updateService.shouldAutoCheck();
-      if (!shouldCheck) return;
-
       final update = await widget.updateService.checkForUpdate();
 
       if (update != null && mounted) {
-        final result = await showDialog<String>(
+        await showDialog<String>(
           context: context,
-          barrierDismissible: false,
+          barrierDismissible: !update.forceUpdate,
           builder: (_) => UpdateCheckDialog(updateService: widget.updateService),
         );
-        if (result == 'skip' || result == 'later') {
-          await widget.updateService.markChecked();
-          widget.updateService.clearPendingUpdate();
-        } else {
-          await widget.updateService.markChecked();
-        }
-      } else {
-        await widget.updateService.markChecked();
+        widget.updateService.clearPendingUpdate();
       }
     } catch (e) {
       debugPrint('[UpdateCheck] Error: $e');
@@ -689,7 +679,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _checkNotificationPermission();
       await widget.taskService.rescheduleNotifications();
-      await NotificationService().fireMissedNotifications(widget.taskService.tasks);
+      await NotificationService().updateOverdueSummary(widget.taskService.tasks);
       _checkForUpdates();
     }
   }

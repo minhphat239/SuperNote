@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperNote - Ứng dụng Quản lý Task Thông minh</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/minhphat239/SuperNote/main/assets/logo.png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --accent2: #8b5cf6;
+            --accent2-glow: rgba(139, 92, 246, 0.3);
+            --accent3: #06b6d4;
+            --accent4: #f59e0b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: rgba(255,255,255,0.06);
+            --glass: rgba(255,255,255,0.03);
+            --glass-border: rgba(255,255,255,0.08);
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ===== GLOW ORBS ===== */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .orb-1 { width: 600px; height: 600px; background: rgba(59,130,246,0.08); top: -200px; left: -200px; }
+        .orb-2 { width: 500px; height: 500px; background: rgba(139,92,246,0.06); bottom: -100px; right: -150px; }
+        .orb-3 { width: 400px; height: 400px; background: rgba(6,182,212,0.05); top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+        /* ===== NAV ===== */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(10,14,23,0.75);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+        }
+        .nav-inner {
+            max-width: 1200px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 64px;
+        }
+        .nav-logo {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 700; font-size: 1.1rem; color: var(--text-primary);
+            text-decoration: none;
+        }
+        .nav-logo img { width: 32px; height: 32px; border-radius: 8px; }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a {
+            color: var(--text-secondary); text-decoration: none; font-size: 0.875rem;
+            font-weight: 500; transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--accent); }
+        .nav-github {
+            display: flex; align-items: center; gap: 6px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            padding: 8px 16px; border-radius: 10px; color: var(--text-primary);
+            text-decoration: none; font-size: 0.875rem; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-github:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
+        .nav-github svg { width: 18px; height: 18px; }
+
+        /* ===== HERO ===== */
+        .hero {
+            position: relative; z-index: 1;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 120px 2rem 80px;
+        }
+        .hero-content { max-width: 700px; }
+        .hero-logo {
+            width: 100px; height: 100px; border-radius: 28px;
+            margin: 0 auto 2rem;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 120px rgba(139,92,246,0.15);
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 900; letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #f1f5f9 0%, var(--accent) 50%, var(--accent2) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.15rem; color: var(--text-secondary);
+            max-width: 520px; margin: 0 auto 2rem;
+        }
+        .hero-badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 50px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+        }
+        .badge .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--success); animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+        .hero-actions { display: flex; gap: 12px; justify-content: center; margin-top: 2rem; }
+        .btn {
+            padding: 14px 28px; border-radius: 14px; font-size: 0.95rem;
+            font-weight: 600; cursor: pointer; border: none; transition: all 0.3s;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white; box-shadow: 0 4px 20px var(--accent-glow);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--accent-glow); }
+        .btn-secondary {
+            background: var(--glass); border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.08); }
+
+        /* ===== SECTIONS ===== */
+        section { position: relative; z-index: 1; padding: 100px 2rem; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .section-label {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.15em; color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 800; letter-spacing: -0.02em; margin-bottom: 1rem;
+        }
+        .section-desc {
+            color: var(--text-secondary); font-size: 1.05rem;
+            max-width: 600px; margin-bottom: 3rem;
+        }
+        .section-center { text-align: center; }
+        .section-center .section-desc { margin: 0 auto 3rem; }
+
+        /* ===== FEATURES GRID ===== */
+        .features-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature-card {
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 20px;
+            padding: 28px; transition: all 0.3s;
+        }
+        .feature-card:hover {
+            border-color: var(--accent); transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+        .feature-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; margin-bottom: 16px;
+        }
+        .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+        .feature-card p { color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6; }
+
+        /* ===== TIMELINE ===== */
+        .timeline { position: relative; padding-left: 40px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+            width: 2px; background: linear-gradient(to bottom, var(--accent), var(--accent2), transparent);
+        }
+        .timeline-item { position: relative; margin-bottom: 48px; }
+        .timeline-dot {
+            position: absolute; left: -33px; top: 6px;
+            width: 16px; height: 16px; border-radius: 50%;
+            border: 3px solid var(--accent); background: var(--bg-primary);
+            z-index: 1;
+        }
+        .timeline-item:nth-child(2) .timeline-dot { border-color: var(--accent2); }
+        .timeline-item:nth-child(3) .timeline-dot { border-color: var(--accent3); }
+        .timeline-item:nth-child(4) .timeline-dot { border-color: var(--accent4); }
+        .timeline-date {
+            font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;
+        }
+        .timeline-card {
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 16px;
+            padding: 24px; transition: all 0.3s;
+        }
+        .timeline-card:hover { border-color: var(--accent); }
+        .timeline-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+        .timeline-card .version-tag {
+            display: inline-block; padding: 3px 10px; border-radius: 6px;
+            background: rgba(59,130,246,0.15); color: var(--accent);
+            font-size: 0.75rem; font-weight: 600; margin-bottom: 12px;
+        }
+        .timeline-card ul {
+            list-style: none; padding: 0;
+        }
+        .timeline-card li {
+            color: var(--text-secondary); font-size: 0.875rem;
+            padding: 4px 0; padding-left: 20px; position: relative;
+        }
+        .timeline-card li::before {
+            content: ''; position: absolute; left: 0; top: 12px;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); opacity: 0.5;
+        }
+        .timeline-download {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 12px; padding: 8px 16px; border-radius: 10px;
+            background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
+            color: var(--success); font-size: 0.8rem; font-weight: 600;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .timeline-download:hover { background: rgba(16,185,129,0.2); }
+
+        /* ===== HOW TO USE ===== */
+        .steps-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px; counter-reset: step;
+        }
+        .step-card {
+            background: var(--bg-card); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 24px; position: relative;
+            counter-increment: step;
+        }
+        .step-num {
+            font-size: 3rem; font-weight: 900; color: rgba(255,255,255,0.04);
+            position: absolute; top: 12px; right: 16px; line-height: 1;
+        }
+        .step-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; position: relative; }
+        .step-card p { color: var(--text-secondary); font-size: 0.85rem; position: relative; }
+
+        /* ===== TECH STACK ===== */
+        .tech-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+        }
+        .tech-card {
+            background: var(--bg-card); border: 1px solid var(--glass-border);
+            border-radius: 14px; padding: 20px; text-align: center;
+            transition: all 0.3s;
+        }
+        .tech-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .tech-card .tech-icon { font-size: 2rem; margin-bottom: 10px; }
+        .tech-card h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+        .tech-card p { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* ===== ADMIN ===== */
+        .admin-section {
+            background: linear-gradient(135deg, rgba(59,130,246,0.05), rgba(139,92,246,0.05));
+            border-top: 1px solid var(--border);
+        }
+        .admin-card {
+            max-width: 600px; margin: 0 auto;
+            background: var(--bg-card); backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 24px;
+            padding: 40px; text-align: center;
+        }
+        .admin-avatar {
+            width: 100px; height: 100px; border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; font-weight: 800; color: white;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+        .admin-card h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+        .admin-card .admin-role {
+            color: var(--accent); font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;
+        }
+        .admin-card p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .admin-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .admin-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 10px 20px; border-radius: 12px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            color: var(--text-primary); text-decoration: none;
+            font-size: 0.85rem; font-weight: 500; transition: all 0.2s;
+        }
+        .admin-link:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
+        .admin-link svg { width: 16px; height: 16px; }
+
+        /* ===== FOOTER ===== */
+        footer {
+            text-align: center; padding: 40px 2rem;
+            color: var(--text-muted); font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+            position: relative; z-index: 1;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        /* ===== FEEDBACK POPUP ===== */
+        .popup-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: all 0.3s;
+        }
+        .popup-overlay.show { opacity: 1; visibility: visible; }
+        .popup-box {
+            background: var(--bg-secondary); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 32px; max-width: 420px; width: 90%;
+            text-align: center; transform: scale(0.9); transition: transform 0.3s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .popup-overlay.show .popup-box { transform: scale(1); }
+        .popup-icon {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 1.5rem;
+        }
+        .popup-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+        .popup-box p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+        .popup-box .email-link {
+            color: var(--accent); font-weight: 600; text-decoration: none;
+        }
+        .popup-box .email-link:hover { text-decoration: underline; }
+        .popup-btn {
+            margin-top: 20px; padding: 12px 32px; border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white; border: none; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .popup-btn:hover { transform: translateY(-1px); }
+
+        /* ===== MOBILE ===== */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero { padding: 100px 1.5rem 60px; }
+            section { padding: 60px 1.5rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- Glow Orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Feedback Popup -->
+<div class="popup-overlay" id="feedbackPopup">
+    <div class="popup-box">
+        <div class="popup-icon">&#9888;&#65039;</div>
+        <h3>Phiên bản thử nghiệm</h3>
+        <p>Đây là phiên bản thử nghiệm, nếu có feedback xin hãy gửi email cho tôi nhé, cảm ơn!</p>
+        <a href="mailto:iammikejs@gmail.com" class="email-link">iammikejs@gmail.com</a>
+        <br>
+        <button class="popup-btn" onclick="closePopup()">Đã hiểu!</button>
+    </div>
+</div>
+
+<!-- Nav -->
+<nav>
+    <div class="nav-inner">
+        <a href="#" class="nav-logo">
+            <img src="https://raw.githubusercontent.com/minhphat239/SuperNote/main/assets/logo.png" alt="Logo">
+            SuperNote
+        </a>
+        <ul class="nav-links">
+            <li><a href="#features">Tính năng</a></li>
+            <li><a href="#timeline">Release</a></li>
+            <li><a href="#howto">Hướng dẫn</a></li>
+            <li><a href="#tech">Công nghệ</a></li>
+            <li><a href="#admin">Admin</a></li>
+        </ul>
+        <a href="https://github.com/minhphat239/SuperNote" target="_blank" class="nav-github">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <img src="https://raw.githubusercontent.com/minhphat239/SuperNote/main/assets/logo.png" alt="SuperNote Logo" class="hero-logo">
+        <h1>SuperNote</h1>
+        <p>Quản lý task thông minh với AI, widget Android, calendar tích hợp và giao diện Cyber-Luxe Glassmorphism</p>
+        <div class="hero-badges">
+            <span class="badge"><span class="dot"></span> v1.0.5 Latest</span>
+            <span class="badge">Flutter</span>
+            <span class="badge">Firebase</span>
+            <span class="badge">Gemini AI</span>
+        </div>
+        <div class="hero-actions">
+            <a href="https://github.com/minhphat239/SuperNote/releases/latest" target="_blank" class="btn btn-primary">
+                &#11015; Tải APK
+            </a>
+            <a href="https://github.com/minhphat239/SuperNote" target="_blank" class="btn btn-secondary">
+                Xem mã nguồn
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+    <div class="container section-center">
+        <div class="section-label">Tính năng</div>
+        <h2 class="section-title">Tại sao chọn SuperNote?</h2>
+        <p class="section-desc">SuperNote kết hợp quản lý task truyền thống với AI và widget Android gốc, giúp bạn luôn cập nhật công việc mọi lúc mọi nơi.</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(59,130,246,0.1);color:var(--accent);">&#129302;</div>
+                <h3>AI Parsing Thông minh</h3>
+                <p>Nhập nhanh 1+ task cùng lúc qua AI. Tự động nhận diện tiêu đề, ngày giờ, danh mục, nhắc nhở, tags và mô tả từ câu tự nhiên.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,0.1);color:var(--accent2);">&#128204;</div>
+                <h3>Widget Android Gốc</h3>
+                <p>3 kích cỡ widget: TaskList (4x3), QuickTask (1x1), Progress (4x1). Xem task trực tiếp trên màn hình chính mà không cần mở app.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(6,182,212,0.1);color:var(--accent3);">&#128197;</div>
+                <h3>Calendar Tích hợp</h3>
+                <p>Xem task theo ngày trên calendar. Nhanh chóng thấy task hôm nay, task đến hạn và lên kế hoạch trực quan.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(16,185,129,0.1);color:var(--success);">&#128276;</div>
+                <h3>Thông báo Thông minh</h3>
+                <p>Nhắc nhở trước giờ(task), Quiet Hours tự động, nhắc lại task hết hạn, thông báo từ boot receiver sau khởi động lại máy.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(245,158,11,0.1);color:var(--accent4);">&#127912;</div>
+                <h3>Tùy biến Giao diện</h3>
+                <p>Background ảnh/video tùy chọn, theme Cyber-Luxe Glassmorphism, overlay mờ trên mỗi card. Dark mode mặc định.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,0.1);color:var(--error);">&#128257;</div>
+                <h3>Đồng bộ Firebase</h3>
+                <p>Đăng nhập Google, đồng bộ task realtime qua Cloud Firestore. Dữ liệu an toàn trên đám mây, không lo mất.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(236,72,153,0.1);color:#ec4899;">&#127760;</div>
+                <h3>Đa ngôn ngữ</h3>
+                <p>Hỗ trợ tiếng Việt và tiếng Anh (i18n). Tự động nhận diện ngôn ngữ thiết bị hoặc chuyển đổi thủ công trong Settings.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(99,102,241,0.1);color:#6366f1;">&#128200;</div>
+                <h3>Thống kê & Timeline</h3>
+                <p>Biểu đồ tiến độ, timeline task trực quan, xem lại task đã hoàn thành và thống kê năng suất theo tuần/tháng.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(34,197,94,0.1);color:#22c55e;">&#128640;</div>
+                <h3>Tự động Cập nhật</h3>
+                <p>Kiểm tra version mới từ GitHub Releases mỗi lần mở app. Tải và cài đặt trực tiếp từ trong app, không cần thoát ra.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Timeline -->
+<section id="timeline" style="background: rgba(0,0,0,0.2);">
+    <div class="container">
+        <div class="section-label">Lịch sử Phát hành</div>
+        <h2 class="section-title">Release Timeline</h2>
+        <p class="section-desc">Theo dõi từng bước phát triển của SuperNote từ phiên bản đầu tiên.</p>
+
+        <div class="timeline">
+            <!-- v1.0.5 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-date">04 Tháng 9, 2026</div>
+                <div class="timeline-card">
+                    <span class="version-tag">v1.0.5</span>
+                    <h3>Fix Update Dialog & Auto-check</h3>
+                    <ul>
+                        <li>Fix crash "Null check operator used on null" trong update dialog</li>
+                        <li>Bỏ bộ đệm 6 giờ — kiểm tra update mỗi lần mở app</li>
+                        <li>Chỉ hiện popup update 1 lần mỗi version</li>
+                        <li>Fallback localization an toàn khi thiếu ngôn ngữ</li>
+                    </ul>
+                    <a href="https://github.com/minhphat239/SuperNote/releases/tag/v1.0.5" target="_blank" class="timeline-download">&#11015; Tải v1.0.5 APK</a>
+                </div>
+            </div>
+
+            <!-- v1.0.3 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-date">04 Tháng 9, 2026</div>
+                <div class="timeline-card">
+                    <span class="version-tag">v1.0.3</span>
+                    <h3>Smart Notifications</h3>
+                    <ul>
+                        <li>Smart notification system cho task reminders</li>
+                        <li>Cải thiện quiet hours với Time Picker</li>
+                        <li>Boot receiver — tự động reschedule sau reboot</li>
+                    </ul>
+                    <a href="https://github.com/minhphat239/SuperNote/releases/tag/v1.0.3" target="_blank" class="timeline-download">&#11015; Tải v1.0.3 APK</a>
+                </div>
+            </div>
+
+            <!-- v1.0.2 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-date">02 Tháng 9, 2026</div>
+                <div class="timeline-card">
+                    <span class="version-tag">v1.0.2</span>
+                    <h3>AI & Widgets Major Update</h3>
+                    <ul>
+                        <li>AI Parsing đa task — nhập nhanh 1+ task cùng lúc</li>
+                        <li>Widget Android gốc: TaskList, QuickTask, Progress</li>
+                        <li>Custom background ảnh/video với overlay</li>
+                        <li>i18n: tiếng Việt + tiếng Anh</li>
+                        <li>Quiet Hours với Time Picker</li>
+                        <li>Fix: expired bug, notification timezone, monochrome icon</li>
+                    </ul>
+                    <a href="https://github.com/minhphat239/SuperNote/releases/tag/v1.0.2" target="_blank" class="timeline-download">&#11015; Tải v1.0.2 APK</a>
+                </div>
+            </div>
+
+            <!-- v1.0.1 -->
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-date">02 Tháng 9, 2026</div>
+                <div class="timeline-card">
+                    <span class="version-tag">v1.0.1</span>
+                    <h3>Cyber-Luxe Glassmorphism</h3>
+                    <ul>
+                        <li>Cyber-Luxe & Neon Cream palette — obsidian bg</li>
+                        <li>Glassmorphism trên tất cả card</li>
+                        <li>Neon Glow Orbs background</li>
+                        <li>Task input với glass blur effect</li>
+                        <li>Settings overhaul — glass cards, glass buttons</li>
+                        <li>Calendar Today button với glass border</li>
+                    </ul>
+                    <a href="https://github.com/minhphat239/SuperNote/releases/tag/v1.0.1" target="_blank" class="timeline-download">&#11015; Tải v1.0.1 APK</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How To Use -->
+<section id="howto">
+    <div class="container section-center">
+        <div class="section-label">Hướng dẫn</div>
+        <h2 class="section-title">Bắt đầu với SuperNote</h2>
+        <p class="section-desc">Chỉ 4 bước đơn giản để bắt đầu quản lý task hiệu quả.</p>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">01</div>
+                <h3>&#128229; Tải & Cài đặt</h3>
+                <p>Tải APK từ GitHub Releases. Bấm Cài đặt trên thiết bị Android. Cho phép cài từ nguồn không xác định nếu được hỏi.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">02</div>
+                <h3>&#128274; Đăng nhập Google</h3>
+                <p>Mở app, bấm Sign in with Google. Dữ liệu sẽ được đồng bộ lên Cloud Firestore自动. An toàn và bảo mật.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">03</div>
+                <h3>&#128221; Tạo Task</h3>
+                <p>Bấm nút "+" để thêm task. Gõ câu tự nhiên như "Họp team thứ 6 lúc 2h chiều" — AI sẽ tự động parse ngày giờ.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">04</div>
+                <h3>&#128204; Thêm Widget</h3>
+                <p>Ấn giữ màn hình chính > Widgets > SuperNote. Chọn TaskList, QuickTask hoặc Progress Widget theo nhu cầu.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack -->
+<section id="tech" style="background: rgba(0,0,0,0.2);">
+    <div class="container section-center">
+        <div class="section-label">Công nghệ</div>
+        <h2 class="section-title">Tech Stack</h2>
+        <p class="section-desc">Xây dựng với công nghệ hiện đại, hiệu suất cao.</p>
+        <div class="tech-grid">
+            <div class="tech-card">
+                <div class="tech-icon">&#128302;</div>
+                <h4>Flutter 3.x</h4>
+                <p>UI Framework</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128172;</div>
+                <h4>Dart 3.12</h4>
+                <p>Ngôn ngữ</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128293;</div>
+                <h4>Firebase</h4>
+                <p>Auth + Firestore</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#129302;</div>
+                <h4>Gemini AI</h4>
+                <p>NLP Parsing</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128241;</div>
+                <h4>Android Native</h4>
+                <p>Kotlin + Widgets</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#127760;</div>
+                <h4>Cloud Firestore</h4>
+                <p>Realtime DB</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128276;</div>
+                <h4>Local Notifications</h4>
+                <p>Task Reminders</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128202;</div>
+                <h4>fl_chart</h4>
+                <p>Biểu đồ Thống kê</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128190;</div>
+                <h4>SharedPreferences</h4>
+                <p>Local Storage</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128274;</div>
+                <h4>Secure Storage</h4>
+                <p>API Keys</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#128191;</div>
+                <h4>Dio + HTTP</h4>
+                <p>Networking</p>
+            </div>
+            <div class="tech-card">
+                <div class="tech-icon">&#127912;</div>
+                <h4>Glassmorphism</h4>
+                <p>UI Design</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Admin -->
+<section id="admin" class="admin-section">
+    <div class="container section-center">
+        <div class="section-label">Nhà phát triển</div>
+        <h2 class="section-title">Meet the Developer</h2>
+        <p class="section-desc">Người tạo ra SuperNote</p>
+        <div class="admin-card">
+            <div class="admin-avatar">M</div>
+            <h3>Minh Phat</h3>
+            <div class="admin-role">Full-stack Mobile Developer</div>
+            <p>Passionate about building beautiful, functional mobile apps with Flutter and AI. Loves glassmorphism UI, clean architecture, and making tools that help people organize their lives.</p>
+            <div class="admin-links">
+                <a href="mailto:iammikejs@gmail.com" class="admin-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    iammikejs@gmail.com
+                </a>
+                <a href="https://github.com/minhphat239" target="_blank" class="admin-link">
+                    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                    GitHub
+                </a>
+                <a href="https://github.com/minhphat239/SuperNote" target="_blank" class="admin-link">
+                    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9z"/></svg>
+                    SuperNote Repo
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <p>SuperNote &copy; 2026 &middot; Built with Flutter &amp; &#10084;&#65039; &middot; <a href="https://github.com/minhphat239/SuperNote" target="_blank">GitHub</a></p>
+</footer>
+
+<script>
+    // Show feedback popup after 2s
+    setTimeout(() => {
+        document.getElementById('feedbackPopup').classList.add('show');
+    }, 2000);
+
+    function closePopup() {
+        document.getElementById('feedbackPopup').classList.remove('show');
+    }
+
+    // Close popup on overlay click
+    document.getElementById('feedbackPopup').addEventListener('click', function(e) {
+        if (e.target === this) closePopup();
+    });
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // Fade in on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.feature-card, .timeline-item, .step-card, .tech-card').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'all 0.6s ease';
+        observer.observe(el);
+    });
+</script>
+
+</body>
+</html>

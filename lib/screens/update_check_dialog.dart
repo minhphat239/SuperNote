@@ -19,6 +19,8 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
   bool _complete = false;
   String? _error;
 
+  AppLocalizations? get _l10n => AppLocalizations.of(context);
+
   @override
   Widget build(BuildContext context) {
     final update = widget.updateService.pendingUpdate;
@@ -74,6 +76,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
 
   Widget _buildAvailableState() {
     final update = widget.updateService.pendingUpdate!;
+    final displayText = update.changelog.isNotEmpty ? update.changelog : update.body;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -105,20 +108,22 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
 
         // Title
         Text(
-          update.isCritical
-              ? AppLocalizations.of(context)!.updateTitle
-              : AppLocalizations.of(context)!.updateNewVersion,
+          update.forceUpdate
+              ? 'Bắt buộc cập nhật!'
+              : update.isCritical
+                  ? (_l10n?.updateTitle ?? 'Important Update!')
+                  : (_l10n?.updateNewVersion ?? 'New version available'),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: update.isCritical ? AppColors.error : AppColors.textPrimary,
+            color: (update.forceUpdate || update.isCritical) ? AppColors.error : AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 8),
 
         // Description with version
         Text(
-          AppLocalizations.of(context)!.updateDescription(update.version),
+          _l10n?.updateDescription(update.version) ?? 'A new version ${update.version} is available.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -129,7 +134,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 16),
 
         // Release notes preview
-        if (update.body.isNotEmpty)
+        if (displayText.isNotEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -144,9 +149,9 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             constraints: const BoxConstraints(maxHeight: 120),
             child: SingleChildScrollView(
               child: Text(
-                update.body.length > 200
-                    ? '${update.body.substring(0, 200)}...'
-                    : update.body,
+                displayText.length > 200
+                    ? '${displayText.substring(0, 200)}...'
+                    : displayText,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textMuted.withValues(alpha: 0.8),
@@ -155,7 +160,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
               ),
             ),
           ),
-        if (update.body.isNotEmpty) const SizedBox(height: 20),
+        if (displayText.isNotEmpty) const SizedBox(height: 20),
 
         // Asset info
         if (update.hasAsset)
@@ -171,22 +176,23 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         // Buttons
         Row(
           children: [
-            Expanded(
-              child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateSkip,
-                color: AppColors.textMuted,
-                onTap: () {
-                  FeedbackService().trigger(FeedbackType.tap);
-                  widget.updateService.skipVersion(update.version);
-                  Navigator.pop(context, 'skip');
-                },
+            if (!update.forceUpdate) ...[
+              Expanded(
+                child: _buildBtn(
+                  label: 'Để sau',
+                  color: AppColors.textMuted,
+                  onTap: () {
+                    FeedbackService().trigger(FeedbackType.tap);
+                    Navigator.pop(context, 'dismiss');
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
+              const SizedBox(width: 10),
+            ],
             Expanded(
-              flex: 2,
+              flex: update.forceUpdate ? 1 : 2,
               child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateNow,
+                label: _l10n?.updateNow ?? 'Cập nhật',
                 color: update.isCritical ? AppColors.error : AppColors.primary,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -258,7 +264,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 20),
 
         Text(
-          AppLocalizations.of(context)!.updateDownloading,
+          _l10n?.updateDownloading ?? 'Downloading update...',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -290,7 +296,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 20),
 
         Text(
-          AppLocalizations.of(context)!.updateDontClose,
+          _l10n?.updateDontClose ?? "Don't close the app while downloading!",
           style: TextStyle(
             fontSize: 11,
             color: AppColors.textMuted.withValues(alpha: 0.5),
@@ -324,7 +330,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 16),
 
         Text(
-          AppLocalizations.of(context)!.updateReady,
+          _l10n?.updateReady ?? 'Download complete!',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -334,7 +340,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 4),
 
         Text(
-          AppLocalizations.of(context)!.updateInstallHint,
+          _l10n?.updateInstallHint ?? 'Tap once to install the new version',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -347,7 +353,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
           children: [
             Expanded(
               child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateLater,
+                label: _l10n?.updateLater ?? 'Later',
                 color: AppColors.textMuted,
                 onTap: () {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -359,7 +365,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             Expanded(
               flex: 2,
               child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateInstall,
+                label: _l10n?.updateInstall ?? 'Install now',
                 color: AppColors.success,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -399,7 +405,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 16),
 
         Text(
-          AppLocalizations.of(context)!.updateFailed,
+          _l10n?.updateFailed ?? 'Download failed',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -409,7 +415,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
         const SizedBox(height: 4),
 
         Text(
-          _error ?? AppLocalizations.of(context)!.updateUnknownError,
+          _error ?? (_l10n?.updateUnknownError ?? 'Unknown error'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
@@ -422,7 +428,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
           children: [
             Expanded(
               child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateClose,
+                label: _l10n?.updateClose ?? 'Close',
                 color: AppColors.textMuted,
                 onTap: () {
                   FeedbackService().trigger(FeedbackType.tap);
@@ -433,7 +439,7 @@ class _UpdateCheckDialogState extends State<UpdateCheckDialog> {
             const SizedBox(width: 10),
             Expanded(
               child: _buildBtn(
-                label: AppLocalizations.of(context)!.updateRetry,
+                label: _l10n?.updateRetry ?? 'Retry',
                 color: AppColors.primary,
                 onTap: () async {
                   FeedbackService().trigger(FeedbackType.tap);

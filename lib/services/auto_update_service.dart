@@ -37,6 +37,8 @@ class UpdateInfo {
   final String htmlUrl;
   final List<UpdateAsset> assets;
   final bool isCritical;
+  final bool forceUpdate;
+  final String changelog;
 
   const UpdateInfo({
     required this.version,
@@ -47,6 +49,8 @@ class UpdateInfo {
     required this.htmlUrl,
     required this.assets,
     this.isCritical = false,
+    this.forceUpdate = false,
+    this.changelog = '',
   });
 
   bool get hasAsset => assets.isNotEmpty;
@@ -92,20 +96,35 @@ class UpdateInfo {
       );
     }).toList();
 
-    final body = json['body'] as String? ?? '';
-    final isCritical = body.toLowerCase().contains('critical') ||
-        body.toLowerCase().contains('quan trọng') ||
-        body.toLowerCase().contains('bắt buộc');
+    final rawBody = json['body'] as String? ?? '';
+
+    // Try to parse body as JSON for structured fields
+    bool forceUpdate = false;
+    String changelog = rawBody;
+    try {
+      final bodyJson = jsonDecode(rawBody) as Map<String, dynamic>;
+      forceUpdate = bodyJson['force_update'] as bool? ?? false;
+      changelog = bodyJson['changelog'] as String? ?? rawBody;
+    } catch (_) {
+      // Body is plain text — use as-is for changelog
+    }
+
+    final isCritical = forceUpdate ||
+        rawBody.toLowerCase().contains('critical') ||
+        rawBody.toLowerCase().contains('quan trọng') ||
+        rawBody.toLowerCase().contains('bắt buộc');
 
     return UpdateInfo(
       version: version,
       tagName: tagName,
       name: json['name'] as String? ?? version,
-      body: body,
+      body: rawBody,
       publishedAt: json['published_at'] as String? ?? '',
       htmlUrl: json['html_url'] as String? ?? '',
       assets: assets,
       isCritical: isCritical,
+      forceUpdate: forceUpdate,
+      changelog: changelog,
     );
   }
 }
@@ -113,11 +132,10 @@ class UpdateInfo {
 class AutoUpdateService extends ChangeNotifier {
   static const String _repoOwner = 'minhphat239';
   static const String _repoName = 'SuperNote';
-  static const String _skipVersionKey = 'skipped_update_version';
   static const String _lastCheckKey = 'last_update_check';
   static const String _downloadedFileKey = 'downloaded_update_file';
 
-  static const Duration _checkInterval = Duration(hours: 6);
+  static const Duration _checkInterval = Duration(seconds: 0);
 
   final FeedbackService _feedback = FeedbackService();
   final Dio _dio = Dio();
@@ -177,12 +195,6 @@ class AutoUpdateService extends ChangeNotifier {
       final updateInfo = UpdateInfo.fromJson(json);
 
       if (_isNewerVersion(updateInfo.version, currentVersion)) {
-        final skipped = await _getSkippedVersion();
-        if (skipped == updateInfo.version) {
-          developer.log('Update ${updateInfo.version} was skipped by user', name: 'AutoUpdateService');
-          return null;
-        }
-
         _pendingUpdate = updateInfo;
         notifyListeners();
         developer.log('Update available: ${updateInfo.version} (current: $currentVersion)', name: 'AutoUpdateService');
@@ -367,21 +379,9 @@ class AutoUpdateService extends ChangeNotifier {
     return false;
   }
 
-  Future<void> skipVersion(String version) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_skipVersionKey, version);
-    _pendingUpdate = null;
-    notifyListeners();
-  }
-
   Future<void> clearPendingUpdate() async {
     _pendingUpdate = null;
     notifyListeners();
-  }
-
-  static Future<String?> _getSkippedVersion() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_skipVersionKey);
   }
 
   static bool _isNewerVersion(String remote, String local) {
