@@ -20,6 +20,32 @@ class StorageService {
 
   /// Reload notes when user changes (login/logout)
   Future<void> reloadForUser(String? userId) async {
+    // Migrate guest notes to user notes on login
+    if (userId != null && _prefs != null) {
+      final guestData = _prefs!.getString('notes_guest');
+      if (guestData != null && guestData.isNotEmpty) {
+        final userKey = 'notes_$userId';
+        final userData = _prefs!.getString(userKey);
+        if (userData == null || userData.isEmpty) {
+          // No existing user notes → just copy guest data
+          await _prefs!.setString(userKey, guestData);
+        } else {
+          // Merge guest notes into user notes
+          try {
+            final guestList = (jsonDecode(guestData) as List).whereType<Map>().map((e) => Note.fromMap(Map<String, dynamic>.from(e))).toList();
+            final userList = (jsonDecode(userData) as List).whereType<Map>().map((e) => Note.fromMap(Map<String, dynamic>.from(e))).toList();
+            final existingIds = userList.map((n) => n.noteId).toSet();
+            final newNotes = guestList.where((n) => !existingIds.contains(n.noteId)).toList();
+            if (newNotes.isNotEmpty) {
+              final merged = [...userList, ...newNotes];
+              await _prefs!.setString(userKey, jsonEncode(merged.map((e) => e.toMap()).toList()));
+            }
+          } catch (_) {}
+        }
+        // Clean up guest data
+        await _prefs!.remove('notes_guest');
+      }
+    }
     _currentUserId = userId;
   }
 
@@ -28,11 +54,19 @@ class StorageService {
     final jsonString = _prefs!.getString(_notesKey);
     if (jsonString == null) return [];
 
-    final List<dynamic> jsonList = jsonDecode(jsonString);
-    final notes = jsonList.map((e) => Note.fromMap(e)).toList();
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+      final notes = jsonList.map((e) => Note.fromMap(e)).toList();
 
-    notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    return notes.where((n) => !n.isDeleted).toList();
+      notes.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return notes.where((n) => !n.isDeleted).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Note>> getAllNotesIncludingDeleted() async {
+    return await _getAllIncludingDeleted();
   }
 
   Future<List<Note>> getUnsyncedNotes() async {
@@ -54,8 +88,12 @@ class StorageService {
     final jsonString = _prefs!.getString(_notesKey);
     if (jsonString == null) return [];
 
-    final List<dynamic> jsonList = jsonDecode(jsonString);
-    return jsonList.map((e) => Note.fromMap(e)).toList();
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+      return jsonList.map((e) => Note.fromMap(e)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _saveAll(List<Note> notes) async {

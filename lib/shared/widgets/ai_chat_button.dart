@@ -51,57 +51,60 @@ class _AiChatButtonState extends State<AiChatButton>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Ripple glow
-          if (widget.showPulse)
-            AnimatedBuilder(
-              animation: _rippleAnim,
-              builder: (ctx, child) {
-                return Container(
-                  width: 52 + (20 * _rippleAnim.value),
-                  height: 52 + (20 * _rippleAnim.value),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primary
-                          .withValues(alpha: 0.3 * (1 - _rippleAnim.value)),
-                      width: 2,
+    return Tooltip(
+      message: 'AI Assistant',
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Ripple glow
+            if (widget.showPulse)
+              AnimatedBuilder(
+                animation: _rippleAnim,
+                builder: (ctx, child) {
+                  return Container(
+                    width: 52 + (20 * _rippleAnim.value),
+                    height: 52 + (20 * _rippleAnim.value),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.primary
+                            .withValues(alpha: 0.3 * (1 - _rippleAnim.value)),
+                        width: 2,
+                      ),
                     ),
+                  );
+                },
+              ),
+            // Main button
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: AppGradient.primary,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                );
-              },
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                size: 22,
+                color: Colors.white,
+              ),
             ),
-          // Main button
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              gradient: AppGradient.primary,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 22,
-              color: Colors.white,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

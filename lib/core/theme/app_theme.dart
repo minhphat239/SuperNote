@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'glass_theme.dart';
 
 // Global theme reference — updated by ThemeService
-GlassTheme _activeTheme = GlassTheme.cyberpunk;
+GlassTheme _activeTheme = GlassTheme.city;
 
 // ===== COLORS =====
 class AppColors {
@@ -18,9 +18,9 @@ class AppColors {
 
   // — Cyber-Luxe Text Palette —
   static const Color textPrimary = Color(0xFFF8FAFC);   // Text Cream Main
-  static const Color textSecondary = Color(0xFFCBD5E1);
-  static const Color textMuted = Color(0xFF94A3B8);     // Text Muted Silver
-  static const Color textTertiary = Color(0xFF64748B);
+  static const Color textSecondary = Color(0xFFD8E0EA);
+  static const Color textMuted = Color(0xFFC0CCD8);     // Text Muted Silver (brightened for contrast)
+  static const Color textTertiary = Color(0xFF8E9FB8);  // Brighter tertiary for readability
 
   // — Dynamic accent (from active theme) —
   static Color get primary => _activeTheme.accent;
@@ -62,9 +62,12 @@ class AppColors {
   static Color get glassBorderEnd => _activeTheme.borderEnd;
   static Color get glassBorderColor => _activeTheme.glassBorderColor;
 
-  // — Neon orbs (background glow) —
+  // — Neon orbs / Ambient mesh glow —
   static List<Color> get orbColors => _activeTheme.orbColors;
   static double get orbOpacity => _activeTheme.orbOpacity;
+  static bool get hasDetailedOrbs => _activeTheme.hasDetailedOrbs;
+  static Color get primaryGlowColor => _activeTheme.primaryGlowColor;
+  static Color get accentGlowColor => _activeTheme.accentGlowColor;
 
   // — Category color map (dynamic) —
   static Map<String, Color> get categoryColors => {
@@ -103,9 +106,23 @@ class AppRadius {
   static const double sm = 8;
   static const double md = 12;
   static const double lg = 16;
-  static const double xl = 20;
-  static const double xxl = 24;
+  static const double xl = 24;
+  static const double xxl = 32;
   static const double full = 999;
+}
+
+// ===== GLASSMORPHISM STANDARD STYLE =====
+class GlassStyle {
+  GlassStyle._();
+  static const double blur = 10;
+  static const double backgroundAlpha = 0.12;
+  static const double borderAlpha = 0.18;
+  static Color get background => Colors.white.withValues(alpha: backgroundAlpha);
+  static Border get border => Border.all(
+    color: Colors.white.withValues(alpha: borderAlpha),
+    width: 1,
+  );
+  static BorderRadius get borderRadius => BorderRadius.circular(AppRadius.lg);
 }
 
 // ===== SHADOWS (glow style for dark theme) =====
@@ -202,11 +219,10 @@ class AppTheme {
 
       // Card
       cardTheme: CardThemeData(
-        color: AppColors.card,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 1.5),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: BorderSide(color: AppColors.border, width: 1),
         ),
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
       ),
@@ -247,7 +263,7 @@ class AppTheme {
         contentTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.textSecondary),
       ),
 
-      // Bottom sheet
+      // Bottom sheet — top corners 24px per design system
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.surface,
         shape: const RoundedRectangleBorder(

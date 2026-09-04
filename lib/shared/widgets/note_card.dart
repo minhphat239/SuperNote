@@ -29,12 +29,8 @@ class NoteCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 2.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 1),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 1)),
-        ],
       ),
       child: Material(
         color: Colors.transparent,

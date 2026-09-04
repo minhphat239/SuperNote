@@ -160,24 +160,42 @@ class NlpDualStageParser {
 
     if (targetTime != null) {
       stage2Time = targetTime;
+      final now = DateTime.now();
 
+      // Calculate stage1 (pre-reminder) based on intent, but cap it:
+      // - stage1 must be in the future
+      // - stage1 must be at least 5 min before target
+      // - if task is < 30min away, no stage1 (too close)
+      int defaultMinutes;
       switch (intent) {
         case TaskIntent.event:
-          stage1Time = targetTime.subtract(const Duration(minutes: 30));
-          stage1Label = 'Nhắc chuẩn bị';
-          stage2Label = 'Bắt đầu';
+          defaultMinutes = 30;
           break;
         case TaskIntent.deadline:
-          stage1Time = targetTime.subtract(const Duration(hours: 2));
-          stage1Label = 'Nhắc chuẩn bị';
-          stage2Label = 'Hạn cuối';
+          defaultMinutes = 120;
           break;
         case TaskIntent.reminder:
-          stage1Time = targetTime.subtract(const Duration(minutes: 15));
-          stage1Label = 'Nhắc nhở';
-          stage2Label = 'Đúng giờ';
+          defaultMinutes = 15;
           break;
       }
+
+      final gapToTarget = targetTime.difference(now).inMinutes;
+      if (gapToTarget > 30) {
+        // Task is far enough — cap stage1 to be at least 5min before target
+        final maxOffset = gapToTarget - 5;
+        final offset = defaultMinutes < maxOffset ? defaultMinutes : maxOffset;
+        if (offset >= 5) {
+          stage1Time = targetTime.subtract(Duration(minutes: offset));
+          stage1Label = intent == TaskIntent.reminder ? 'Nhắc nhở' : 'Nhắc chuẩn bị';
+        }
+      }
+      // If task is <= 30 min away, skip stage1 entirely (no point reminding)
+
+      stage2Label = switch (intent) {
+        TaskIntent.event => 'Bắt đầu',
+        TaskIntent.deadline => 'Hạn cuối',
+        TaskIntent.reminder => 'Đúng giờ',
+      };
     }
 
     return DualStageResult(

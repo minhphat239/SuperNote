@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer' as developer;
 
 import '../models/task.dart';
+import '../models/note.dart';
 
 class FirestoreRepository {
   static final FirestoreRepository _instance = FirestoreRepository._internal();
@@ -69,7 +70,7 @@ class FirestoreRepository {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'settings': {
-          'theme': 'cyberpunk',
+          'theme': 'city',
           'notificationsEnabled': true,
           'quietHoursStart': 22,
           'quietHoursEnd': 7,
@@ -236,6 +237,52 @@ class FirestoreRepository {
     }
   }
 
+  Future<List<Task>> syncCloudToLocal(List<Task> localTasks) async {
+    if (!_isAuthenticated || _db == null) return localTasks;
+    try {
+      final cloudTasks = await getAllTasks();
+      if (cloudTasks.isEmpty) {
+        // Cloud is empty but local has data → push local to cloud
+        if (localTasks.isNotEmpty) {
+          await syncLocalToCloud(localTasks);
+        }
+        return localTasks;
+      }
+
+      // Merge: cloud tasks + local tasks, last-write-wins by updatedAt
+      final mergedMap = <String, Task>{};
+
+      // Add all local tasks first
+      for (final task in localTasks) {
+        mergedMap[task.id] = task;
+      }
+
+      // Merge cloud tasks: if cloud version is newer, it wins
+      for (final cloudTask in cloudTasks) {
+        final localTask = mergedMap[cloudTask.id];
+        if (localTask == null) {
+          // New task from cloud → add it
+          mergedMap[cloudTask.id] = cloudTask;
+        } else if (cloudTask.updatedAt.isAfter(localTask.updatedAt)) {
+          // Cloud is newer → use cloud version
+          mergedMap[cloudTask.id] = cloudTask;
+        }
+        // else local is newer → keep local (already in map)
+      }
+
+      final merged = mergedMap.values.toList();
+
+      // Push merged result back to cloud to ensure consistency
+      await syncLocalToCloud(merged);
+
+      developer.log('Merged ${localTasks.length} local + ${cloudTasks.length} cloud = ${merged.length} total', name: 'FirestoreRepository');
+      return merged;
+    } catch (e) {
+      developer.log('Failed to sync cloud to local, using local data', error: e, name: 'FirestoreRepository');
+      return localTasks;
+    }
+  }
+
   Future<void> deleteAllTasks() async {
     if (!_isAuthenticated || _db == null) return;
     try {
@@ -248,6 +295,108 @@ class FirestoreRepository {
     } catch (e) {
       developer.log('Failed to delete all tasks', error: e, name: 'FirestoreRepository');
       rethrow;
+    }
+  }
+
+  // ===== NOTES =====
+
+  CollectionReference<Map<String, dynamic>> get _notesCollection {
+    if (!_isAuthenticated) {
+      throw Exception('User not authenticated');
+    }
+    return _db!.collection('users').doc(_userId).collection('notes');
+  }
+
+  Map<String, dynamic> _noteToCloudMap(Note note) {
+    return {
+      'noteId': note.noteId,
+      'title': note.title,
+      'content': note.content,
+      'createdAt': Timestamp.fromDate(note.createdAt),
+      'updatedAt': Timestamp.fromDate(note.updatedAt),
+      'isDeleted': note.isDeleted,
+      'syncVersion': note.syncVersion,
+    };
+  }
+
+  Note _cloudMapToNote(String id, Map<String, dynamic> data) {
+    try {
+      return Note(
+        noteId: data['noteId'] is String ? data['noteId'] as String : id,
+        title: data['title'] is String ? data['title'] as String : '',
+        content: data['content'] is String ? data['content'] as String : '',
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        isDeleted: data['isDeleted'] is bool ? data['isDeleted'] as bool : false,
+        syncVersion: data['syncVersion'] is int ? data['syncVersion'] as int : 0,
+        isSynced: true,
+      );
+    } catch (e, st) {
+      developer.log('Failed to map cloud note (id=$id)', error: e, stackTrace: st, name: 'FirestoreRepository');
+      return Note(noteId: id, title: '(Lỗi dữ liệu)');
+    }
+  }
+
+  Future<List<Note>> getAllNotes() async {
+    if (!_isAuthenticated) return [];
+    try {
+      final snapshot = await _notesCollection
+          .orderBy('updatedAt', descending: true)
+          .get(const GetOptions(source: Source.serverAndCache));
+      return snapshot.docs
+          .map((doc) => _cloudMapToNote(doc.id, doc.data()))
+          .toList();
+    } catch (e) {
+      developer.log('Failed to get notes from cloud', error: e, name: 'FirestoreRepository');
+      return [];
+    }
+  }
+
+  Future<void> syncNotesLocalToCloud(List<Note> localNotes) async {
+    if (!_isAuthenticated || _db == null) return;
+    try {
+      final batch = _db!.batch();
+      for (final note in localNotes) {
+        final ref = _notesCollection.doc(note.noteId);
+        batch.set(ref, _noteToCloudMap(note), SetOptions(merge: true));
+      }
+      await batch.commit();
+      developer.log('Synced ${localNotes.length} notes to cloud', name: 'FirestoreRepository');
+    } catch (e) {
+      developer.log('Failed to sync notes to cloud', error: e, name: 'FirestoreRepository');
+      rethrow;
+    }
+  }
+
+  Future<List<Note>> syncNotesCloudToLocal(List<Note> localNotes) async {
+    if (!_isAuthenticated || _db == null) return localNotes;
+    try {
+      final cloudNotes = await getAllNotes();
+      if (cloudNotes.isEmpty && localNotes.isNotEmpty) {
+        await syncNotesLocalToCloud(localNotes);
+        return localNotes;
+      }
+
+      final mergedMap = <String, Note>{};
+      for (final note in localNotes) {
+        mergedMap[note.noteId] = note;
+      }
+      for (final cloudNote in cloudNotes) {
+        final localNote = mergedMap[cloudNote.noteId];
+        if (localNote == null) {
+          mergedMap[cloudNote.noteId] = cloudNote;
+        } else if (cloudNote.updatedAt.isAfter(localNote.updatedAt)) {
+          mergedMap[cloudNote.noteId] = cloudNote;
+        }
+      }
+
+      final merged = mergedMap.values.where((n) => !n.isDeleted).toList();
+      await syncNotesLocalToCloud(merged);
+      developer.log('Merged ${localNotes.length} local + ${cloudNotes.length} cloud = ${merged.length} notes', name: 'FirestoreRepository');
+      return merged;
+    } catch (e) {
+      developer.log('Failed to sync notes cloud-to-local', error: e, name: 'FirestoreRepository');
+      return localNotes;
     }
   }
 

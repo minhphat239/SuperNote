@@ -76,6 +76,37 @@ class AppLocalizationsVi extends AppLocalizations {
       'Thông báo sẽ được tạm dừng trong khoảng thời gian này';
 
   @override
+  String get timeStart => 'Bắt đầu';
+
+  @override
+  String get timeEnd => 'Kết thúc';
+
+  @override
+  String get detailedBackground => 'Hình nền chi tiết';
+
+  @override
+  String get detailedBackgroundDesc => 'Bật/tắt hiệu ứng orbs và animation nền';
+
+  @override
+  String get attachmentFile => 'Tệp';
+
+  @override
+  String attachmentCount(Object count) {
+    return '$count tệp đính kèm';
+  }
+
+  @override
+  String get attachFile => 'Đính kèm tệp';
+
+  @override
+  String get chooseFromDevice => 'Chọn tệp từ thiết bị';
+
+  @override
+  String filesAttached(Object count) {
+    return '$count tệp đã đính kèm';
+  }
+
+  @override
   String get accountTitle => 'Tài khoản';
 
   @override
@@ -191,6 +222,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get delete => 'Xóa';
+
+  @override
+  String get snooze => 'Tạm hoãn';
 
   @override
   String get edit => 'Sửa';
@@ -312,6 +346,33 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get calendarTitle => 'Lịch';
+
+  @override
+  String get timelineTitle => 'Dòng thời gian';
+
+  @override
+  String get tasksTitle => 'Công việc';
+
+  @override
+  String get weekdayMon => 'T2';
+
+  @override
+  String get weekdayTue => 'T3';
+
+  @override
+  String get weekdayWed => 'T4';
+
+  @override
+  String get weekdayThu => 'T5';
+
+  @override
+  String get weekdayFri => 'T6';
+
+  @override
+  String get weekdaySat => 'T7';
+
+  @override
+  String get weekdaySun => 'CN';
 
   @override
   String get todayButton => 'Hôm nay';
@@ -520,10 +581,15 @@ class AppLocalizationsVi extends AppLocalizations {
   String get updateNewVersion => 'Có phiên bản mới';
 
   @override
+  String updateDescription(Object version) {
+    return 'App đã có phiên bản mới: $version, vui lòng bấm cập nhật để tự động cập nhật';
+  }
+
+  @override
   String get updateSkip => 'Bỏ qua';
 
   @override
-  String get updateNow => 'Cập nhật ngay';
+  String get updateNow => 'Cập nhật';
 
   @override
   String get updateDownloading => 'Đang tải bản cập nhật...';
@@ -668,4 +734,15 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get authGenericError => 'Đã xảy ra lỗi. Vui lòng thử lại.';
+
+  @override
+  String get authForgotPassword => 'Quên mật khẩu?';
+
+  @override
+  String get authPasswordResetSent =>
+      'Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư.';
+
+  @override
+  String get aiGreeting =>
+      'Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.';
 }

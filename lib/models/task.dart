@@ -1,14 +1,31 @@
 import 'package:flutter/material.dart';
 
-enum TaskCategory {
-  class_('Class', Colors.blue),
-  exam('Exam', Colors.red),
-  assignment('Assignment', Colors.orange),
-  personal('Personal', Colors.green);
+class _Sentinel {
+  const _Sentinel();
+}
+const _sentinel = _Sentinel();
 
-  const TaskCategory(this.label, this.color);
+enum TaskCategory {
+  class_('Class'),
+  exam('Exam'),
+  assignment('Assignment'),
+  personal('Personal');
+
+  const TaskCategory(this.label);
   final String label;
-  final Color color;
+
+  Color get color {
+    switch (this) {
+      case TaskCategory.class_:
+        return const Color(0xFF00F5FF);
+      case TaskCategory.exam:
+        return const Color(0xFFFF007F);
+      case TaskCategory.assignment:
+        return const Color(0xFFFF8C42);
+      case TaskCategory.personal:
+        return const Color(0xFF00FF66);
+    }
+  }
 }
 
 enum TaskStatus {
@@ -143,30 +160,30 @@ class Task {
 
   Task copyWith({
     String? title,
-    String? description,
-    String? noteContent,
+    Object? description = _sentinel,
+    Object? noteContent = _sentinel,
     List<SubTask>? subtasks,
-    DateTime? dueDate,
-    DateTime? dueTime,
+    Object? dueDate = _sentinel,
+    Object? dueTime = _sentinel,
     TaskCategory? category,
-    String? repeatRule,
-    DateTime? repeatEndDate,
-    int? preReminderOffset,
+    Object? repeatRule = _sentinel,
+    Object? repeatEndDate = _sentinel,
+    Object? preReminderOffset = _sentinel,
     TaskStatus? status,
     List<String>? attachments,
   }) {
     return Task(
       id: id,
       title: title ?? this.title,
-      description: description ?? this.description,
-      noteContent: noteContent ?? this.noteContent,
+      description: identical(description, _sentinel) ? this.description : (description as String? ?? ''),
+      noteContent: identical(noteContent, _sentinel) ? this.noteContent : (noteContent as String? ?? ''),
       subtasks: subtasks ?? this.subtasks,
-      dueDate: dueDate ?? this.dueDate,
-      dueTime: dueTime ?? this.dueTime,
+      dueDate: identical(dueDate, _sentinel) ? this.dueDate : dueDate as DateTime?,
+      dueTime: identical(dueTime, _sentinel) ? this.dueTime : dueTime as DateTime?,
       category: category ?? this.category,
-      repeatRule: repeatRule ?? this.repeatRule,
-      repeatEndDate: repeatEndDate ?? this.repeatEndDate,
-      preReminderOffset: preReminderOffset ?? this.preReminderOffset,
+      repeatRule: identical(repeatRule, _sentinel) ? this.repeatRule : repeatRule as String?,
+      repeatEndDate: identical(repeatEndDate, _sentinel) ? this.repeatEndDate : repeatEndDate as DateTime?,
+      preReminderOffset: identical(preReminderOffset, _sentinel) ? this.preReminderOffset : preReminderOffset as int?,
       status: status ?? this.status,
       attachments: attachments ?? this.attachments,
       createdAt: createdAt,

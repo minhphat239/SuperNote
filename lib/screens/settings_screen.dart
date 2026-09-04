@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/glass_theme.dart';
 import '../services/auth_service.dart';
@@ -13,6 +13,7 @@ import '../services/task_service.dart';
 import '../services/custom_background_service.dart';
 import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
+import 'auth_screen.dart';
 import 'past_tasks_screen.dart';
 import 'stats_screen.dart';
 import '../shared/widgets/cyberpunk_background.dart';
@@ -88,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.surface,
+            backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
             surfaceTintColor: Colors.transparent,
             title: Text(AppLocalizations.of(context)!.settings, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.textPrimary)),
           ),
@@ -99,12 +100,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ===== THEME (top — most visual impact) =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionAppearance),
                 _buildThemeSelector(),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
+
+                // ===== DETAILED BACKGROUND TOGGLE =====
+                _buildCard([
+                  _buildSwitchTile(
+                    icon: Icons.auto_awesome_rounded,
+                    iconColor: AppColors.primary,
+                    title: AppLocalizations.of(context)!.detailedBackground,
+                    subtitle: AppLocalizations.of(context)!.detailedBackgroundDesc,
+                    value: widget.themeService.detailedBackground,
+                    onChanged: (v) => widget.themeService.toggleDetailedBackground(v),
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== CUSTOM BACKGROUND =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionCustomBg),
                 _buildCustomBackgroundCard(),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== NOTIFICATIONS (second — most used) =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionNotifications),
@@ -143,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: _showQuietHoursPicker,
                   ),
                 ]),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== ARCHIVE =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionStorage),
@@ -165,7 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ]),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== FEATURES =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionFeatures),
@@ -187,19 +201,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                 ]),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== ACCOUNT =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionAccount),
                 _buildLanguageTile(),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 _buildAccountCard(),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== GEMINI AI =====
                 _buildSectionTitle('Gemini AI'),
                 _buildGeminiCard(),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== TEST =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionTest),
@@ -220,17 +234,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: _testGemini,
                   ),
                 ]),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
 
                 // ===== ABOUT =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionInfo),
                 _buildCard([
                   _buildTapTile(
                     icon: Icons.info_outline_rounded,
-                    iconColor: AppColors.textSecondary,
+                    iconColor: AppColors.primary,
                     title: 'SuperNote',
-                    subtitle: 'v$_appVersion — Smart reminder app for students',
-                    onTap: () {},
+                    subtitle: 'v$_appVersion',
+                    onTap: _showAboutDialog,
                   ),
                 ]),
               ]),
@@ -275,7 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             subtitle: Text(
               isLocalGuest || user?.isAnonymous == true ? AppLocalizations.of(context)!.accountNoSync : email,
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: 12, color: Color(0xFFA0AAB2)),
             ),
           ),
           _buildDivider(),
@@ -316,7 +330,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isVietnamese = widget.languageService.isVietnamese;
     return _buildCard([
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             Icon(Icons.language_rounded, color: AppColors.primary, size: 22),
@@ -331,7 +345,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Text(
                     isVietnamese ? AppLocalizations.of(context)!.languageVietnamese : AppLocalizations.of(context)!.languageEnglish,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFA0AAB2)),
                   ),
                 ],
               ),
@@ -362,8 +376,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildLangOption({required String label, required bool isSelected}) {
     return GestureDetector(
-      onTap: () {
-        widget.languageService.changeLanguage(label == 'VI' ? 'vi' : 'en');
+      onTap: () async {
+        await widget.languageService.changeLanguage(label == 'VI' ? 'vi' : 'en');
+        if (mounted) setState(() {});
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -405,7 +420,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Gemini AI', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
         subtitle: Text(
           _geminiConfigured ? 'Configured — AI features enabled' : 'Enter API key to enable AI',
-          style: TextStyle(fontSize: 12, color: _geminiConfigured ? AppColors.green : AppColors.textMuted),
+          style: TextStyle(fontSize: 12, color: _geminiConfigured ? AppColors.green : const Color(0xFFA0AAB2)),
         ),
       ),
       _buildDivider(),
@@ -423,7 +438,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: const TextStyle(fontSize: 13, fontFamily: 'monospace', color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Paste your Gemini API key...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                       filled: true,
                       fillColor: Colors.black.withValues(alpha: 0.3),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -528,7 +543,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
             Text(
               'Get your API key from aistudio.google.com/apikey',
-              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3)),
+              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.5)),
             ),
           ],
         ),
@@ -543,7 +558,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: backgroundColor,
       duration: duration ?? const Duration(seconds: 2),
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      margin: EdgeInsets.fromLTRB(16, 0, 16, 80 + MediaQuery.of(context).padding.bottom),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
     ));
   }
@@ -551,8 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ===== AUTH ACTIONS =====
   void _signOut() async {
     try {
-      // Firebase signOut is essential — Google signOut is optional
-      await FirebaseAuth.instance.signOut();
+      await widget.authService.signOut();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -563,7 +577,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _signIn() async {
-    await FirebaseAuth.instance.signOut();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AuthScreen(
+          authService: widget.authService,
+          themeService: widget.themeService,
+        ),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'About',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, a1, a2) => const SizedBox.shrink(),
+      transitionBuilder: (ctx, a1, a2, child) {
+        final curved = CurvedAnimation(parent: a1, curve: Curves.easeOutCubic);
+        return ScaleTransition(
+          scale: curved,
+          child: FadeTransition(
+            opacity: a1,
+            child: _AboutDialog(appVersion: _appVersion),
+          ),
+        );
+      },
+    );
   }
 
   // ===== ACTIONS =====
@@ -584,9 +627,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _sendTestNotification() async {
-    await _notifService.sendTestNotification();
+    final success = await _notifService.sendTestNotification();
     if (!mounted) return;
-    _showSnack('Test notification sent!');
+    if (success) {
+      _showSnack('Test notification sent!');
+    } else {
+      _showSnack('Notification failed — check permission in Settings');
+    }
   }
 
   void _showPreReminderPicker() {
@@ -630,8 +677,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       builder: (_) => _QuietHoursSheet(
         initialStart: startTime,
@@ -657,25 +704,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ===== UI Components =====
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: 16, top: 4),
       child: Text(title.toUpperCase(),
           style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Colors.white54,
+              color: const Color(0xFFA0AAB2),
               letterSpacing: 0.8)),
     );
   }
 
   Widget _buildCard(List<Widget> children) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
               width: 1,
@@ -700,11 +747,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Material(
       color: Colors.transparent,
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
           child: Icon(icon, size: 20, color: iconColor)),
         title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-        trailing: Switch(value: value, onChanged: onChanged, activeThumbColor: AppColors.primary),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFFA0AAB2))),
+        trailing: Container(
+          decoration: BoxDecoration(
+            color: value
+                ? AppColors.primary.withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: value
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.12),
+              width: 0.5,
+            ),
+          ),
+          child: Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.primary,
+            inactiveThumbColor: AppColors.textMuted,
+            activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
       ),
     );
   }
@@ -719,10 +788,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Material(
       color: Colors.transparent,
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
           child: Icon(icon, size: 20, color: iconColor)),
         title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFFA0AAB2))),
         trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
         onTap: onTap,
       ),
@@ -739,10 +809,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Material(
       color: Colors.transparent,
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.sm)),
           child: Icon(icon, size: 20, color: iconColor)),
         title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFFA0AAB2))),
         trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
         onTap: onTap,
       ),
@@ -769,66 +840,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              children: GlassTheme.all.map((theme) {
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 0.85,
+              ),
+              itemCount: GlassTheme.all.length,
+              itemBuilder: (context, index) {
+                final theme = GlassTheme.all[index];
                 final isSelected = theme.id == current;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => widget.themeService.setTheme(theme.id),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                      decoration: BoxDecoration(
+                return GestureDetector(
+                  onTap: () => widget.themeService.setTheme(theme.id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.accent.withValues(alpha: 0.10)
+                          : Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
                         color: isSelected
-                            ? theme.accent.withValues(alpha: 0.15)
-                            : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: isSelected
-                              ? theme.accent
-                              : AppColors.border,
-                          width: isSelected ? 1.5 : 1,
-                        ),
+                            ? theme.accent.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.10),
+                        width: isSelected ? 1.5 : 0.5,
                       ),
-                      child: Column(
-                        children: [
-                          // Color dot
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [theme.borderStart, theme.borderEnd],
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: theme.accent.withValues(alpha: 0.25),
+                                blurRadius: 16,
+                                spreadRadius: 0,
                               ),
-                              shape: BoxShape.circle,
-                              boxShadow: isSelected
-                                  ? [BoxShadow(
-                                      color: theme.accent.withValues(alpha: 0.4),
-                                      blurRadius: 8,
-                                    )]
-                                  : null,
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [theme.borderStart, theme.borderEnd],
                             ),
-                            child: isSelected
-                                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                            shape: BoxShape.circle,
+                            boxShadow: isSelected
+                                ? [BoxShadow(
+                                    color: theme.accent.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                  )]
                                 : null,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${theme.emoji} ${theme.name}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? theme.accent : AppColors.textMuted,
-                            ),
-                            textAlign: TextAlign.center,
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${theme.emoji} ${theme.name}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? theme.accent : AppColors.textMuted,
                           ),
-                        ],
-                      ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 );
-              }).toList(),
+              },
             ),
           ],
         ),
@@ -990,12 +1079,8 @@ class _QuietHoursSheetState extends State<_QuietHoursSheet> {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 5),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
       ),
       child: SafeArea(
         child: Column(
@@ -1043,7 +1128,7 @@ class _QuietHoursSheetState extends State<_QuietHoursSheet> {
               children: [
                 // Start time
                 Expanded(
-                  child: _buildTimeTile('Bắt đầu', _startTime, true),
+                  child: _buildTimeTile(AppLocalizations.of(context)!.timeStart, _startTime, true),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1052,7 +1137,7 @@ class _QuietHoursSheetState extends State<_QuietHoursSheet> {
                 ),
                 // End time
                 Expanded(
-                  child: _buildTimeTile('Kết thúc', _endTime, false),
+                  child: _buildTimeTile(AppLocalizations.of(context)!.timeEnd, _endTime, false),
                 ),
               ],
             ),
@@ -1136,5 +1221,276 @@ class _QuietHoursSheetState extends State<_QuietHoursSheet> {
         ),
       ),
     );
+  }
+}
+
+class _AboutDialog extends StatelessWidget {
+  final String appVersion;
+  const _AboutDialog({required this.appVersion});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 320,
+          margin: const EdgeInsets.symmetric(horizontal: 32),
+          decoration: BoxDecoration(
+            color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 5),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // App icon
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 16,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.flash_on_rounded,
+                          color: Colors.white, size: 32),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // App name + version
+                    Text('SuperNote',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        )),
+                    const SizedBox(height: 4),
+                    Text('v$appVersion',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMuted.withValues(alpha: 0.7),
+                        )),
+                    const SizedBox(height: 20),
+
+                    // Divider
+                    Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Links row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _SocialChip(
+                          icon: Icons.language_rounded,
+                          label: 'Website',
+                          onTap: () => launchUrl(Uri.parse('https://supernote.app'),
+                              mode: LaunchMode.externalApplication),
+                        ),
+                        const SizedBox(width: 10),
+                        _SocialChip(
+                          icon: Icons.code_rounded,
+                          label: 'GitHub',
+                          onTap: () => launchUrl(Uri.parse('https://github.com/minhphat239/SuperNote'),
+                              mode: LaunchMode.externalApplication),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Divider
+                    Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Author
+                    Text('Tác giả',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted.withValues(alpha: 0.5),
+                          letterSpacing: 0.8,
+                        )),
+                    const SizedBox(height: 8),
+                    Text('Ngô Minh Phát',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        )),
+                    const SizedBox(height: 12),
+
+                    // Social icons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _SocialIcon(
+                          icon: 'facebook',
+                          color: const Color(0xFF1877F2),
+                          onTap: () => launchUrl(Uri.parse('https://facebook.com/nmp0704'),
+                              mode: LaunchMode.externalApplication),
+                        ),
+                        const SizedBox(width: 14),
+                        _SocialIcon(
+                          icon: 'instagram',
+                          color: const Color(0xFFE4405F),
+                          onTap: () => launchUrl(Uri.parse('https://instagram.com/nmp0704'),
+                              mode: LaunchMode.externalApplication),
+                        ),
+                        const SizedBox(width: 14),
+                        _SocialIcon(
+                          icon: 'tiktok',
+                          color: AppColors.textPrimary,
+                          onTap: () => launchUrl(Uri.parse('https://tiktok.com/@nmp0704'),
+                              mode: LaunchMode.externalApplication),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Close button
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('Đóng',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            )),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SocialChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppColors.textMuted),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialIcon extends StatelessWidget {
+  final String icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SocialIcon({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          _getIconData(),
+          size: 20,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconData() {
+    switch (icon) {
+      case 'facebook':
+        return Icons.facebook_rounded;
+      case 'instagram':
+        return Icons.camera_alt_rounded;
+      case 'tiktok':
+        return Icons.music_note_rounded;
+      default:
+        return Icons.link;
+    }
   }
 }

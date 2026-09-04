@@ -270,7 +270,7 @@ class _NlpInputBarState extends State<NlpInputBar> with SingleTickerProviderStat
           // Input row
           Container(
             constraints: const BoxConstraints(minHeight: 44),
-            padding: const EdgeInsets.only(left: 12, right: 8, top: 6, bottom: 6),
+            padding: const EdgeInsets.only(left: 16, right: 8, top: 6, bottom: 6),
             child: Row(
               children: [
                 // AI sparkle icon
@@ -328,14 +328,16 @@ class _NlpInputBarState extends State<NlpInputBar> with SingleTickerProviderStat
                           : [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 6, offset: const Offset(0, 2))],
                     ),
                     child: _isProcessing
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 14, height: 14,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: AppColors.textMuted,
                             ),
                           )
-                        : const Icon(Icons.send_rounded, size: 15, color: Colors.white),
+                        : const Center(
+                            child: Icon(Icons.send_rounded, size: 15, color: Colors.white),
+                          ),
                   ),
                 ),
               ],

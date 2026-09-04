@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/task.dart';
 import '../../services/gemini_service.dart';
 import '../../services/task_service.dart';
@@ -17,6 +18,7 @@ class ChatMessage {
   final bool isChecklist;
   final List<ChecklistItem>? checklistItems;
   final List<TaskSuggestion>? taskSuggestions;
+  final List<Map<String, dynamic>>? actions;
 
   ChatMessage({
     required this.text,
@@ -25,6 +27,7 @@ class ChatMessage {
     this.isChecklist = false,
     this.checklistItems,
     this.taskSuggestions,
+    this.actions,
   }) : timestamp = timestamp ?? DateTime.now();
 
   bool get hasTaskSuggestions =>
@@ -67,6 +70,7 @@ class AiChatPanel extends StatefulWidget {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (_) => AiChatPanel(geminiService: geminiService, taskService: taskService),
     );
   }
@@ -86,11 +90,16 @@ class _AiChatPanelState extends State<AiChatPanel> {
   @override
   void initState() {
     super.initState();
-    _messages.add(ChatMessage(
-      text: 'Xin chào! Mình là AI trợ lý của SuperNote.\n'
-          'Bạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.',
-      isUser: false,
-    ));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _messages.isEmpty) {
+        setState(() {
+          _messages.add(ChatMessage(
+            text: AppLocalizations.of(context)!.aiGreeting,
+            isUser: false,
+          ));
+        });
+      }
+    });
   }
 
   @override
@@ -136,8 +145,18 @@ class _AiChatPanelState extends State<AiChatPanel> {
 
       if (!mounted) return;
 
-      final reply = response ?? 'Xin lỗi, mình không thể xử lý yêu cầu này.';
+      final reply = response ?? 'Xin loi, minh khong the xu ly yeu cau nay.';
       final parsed = _parseResponse(reply);
+
+      // Auto-create tasks if AI returned task suggestions
+      if (parsed.hasTaskSuggestions) {
+        await _autoCreateTasksFromSuggestions(parsed);
+      }
+
+      // Execute any actions from the AI response
+      if (parsed.actions != null && parsed.actions!.isNotEmpty) {
+        await _executeActions(parsed.actions!);
+      }
 
       setState(() {
         _messages.add(parsed);
@@ -149,7 +168,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
       if (!mounted) return;
       setState(() {
         _messages.add(ChatMessage(
-          text: 'Đã xảy ra lỗi: ${e.toString()}',
+          text: 'Da xay ra loi: ${e.toString()}',
           isUser: false,
         ));
         _isLoading = false;
@@ -158,31 +177,34 @@ class _AiChatPanelState extends State<AiChatPanel> {
     }
   }
 
-  String _buildPrompt(String input) {
-    final lower = input.toLowerCase();
+  Future<void> _autoCreateTasksFromSuggestions(ChatMessage msg) async {
+    // Don't auto-create — show suggestion cards with "Thêm lịch" buttons inline
+    // User taps the button to add each task individually
+  }
 
-    if (lower.contains('tóm tắt') || lower.contains('summarize')) {
-      return 'Tóm tắt ngắn gọn yêu cầu sau:\n$input';
+  Future<void> _executeActions(List<Map<String, dynamic>> actions) async {
+    for (final action in actions) {
+      final type = action['action'] as String?;
+      final taskId = action['taskId'] as String?;
+      if (taskId == null || type == null) continue;
+
+      try {
+        switch (type) {
+          case 'toggle':
+            await widget.taskService.toggleTask(taskId);
+            break;
+          case 'delete':
+            await widget.taskService.deleteTask(taskId);
+            break;
+        }
+      } catch (e) {
+        debugPrint('[AIChat] Action $type failed: $e');
+      }
     }
-    if (lower.contains('checklist') ||
-        lower.contains('chia nhỏ') ||
-        lower.contains('bước')) {
-      return 'Tạo checklist cho task sau. Trả về JSON array [{"title": "..."}]:\n$input';
-    }
-    if (lower.contains('phân tích') || lower.contains('analyze')) {
-      return 'Phân tích task sau và gợi ý thời gian, ưu tiên:\n$input';
-    }
-    if (lower.contains('tag') || lower.contains('category') || lower.contains('phân loại')) {
-      return 'Gợi ý tag phù hợp cho:\n$input';
-    }
-    if (lower.contains('lịch') ||
-        lower.contains('schedule') ||
-        lower.contains('kế hoạch')) {
-      return 'Giúp tôi lên lịch cho:\n$input';
-    }
-    if (lower.contains('hôm nay') || lower.contains('today')) {
-      return 'Tóm tắt hoạt động hôm nay và gợi ý cho ngày mai.';
-    }
+    if (mounted) setState(() {});
+  }
+
+  String _buildPrompt(String input) {
     return input;
   }
 
@@ -190,160 +212,263 @@ class _AiChatPanelState extends State<AiChatPanel> {
     final now = DateTime.now();
     final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    // Inject all task data so AI can query and act on real tasks
+    final taskData = _buildTaskDataForAI();
+
     return 'Bạn là trợ lý AI thông minh của SuperNote, '
-        'một ứng dụng quản lý task cho sinh viên Việt Nam. '
-        'Hôm nay là $dateStr, giờ hiện tại là $timeStr. '
-        'Trả lời ngắn gọn, thân thiện bằng tiếng Việt. '
-        'Người dùng có thể yêu cầu tạo MỘT hoặc NHIỀU task trong một câu. '
-        'Nếu người dùng yêu cầu tạo task hoặc lên lịch, '
-        'bạn PHẢI trả về đúng 2 phần, phân tách bằng dòng "---":\n'
-        'Phần 1: JSON task với format {"tasks":[{...},{...}]}: mỗi phần tử có '
-        '{"title":"...","date":"YYYY-MM-DD","time":"HH:mm","category":"class|exam|assignment|personal","reminder_minutes":0}\n'
-        'Phần 2: Tin nhắn giải thích bằng tiếng Việt.\n\n'
-        'Ví dụ 1 task:\n'
-        '{"tasks":[{"title":"Đá bóng","date":"2026-09-11","time":"18:00","category":"personal","reminder_minutes":60}]}\n'
+        'một ứng dụng quản lý task. '
+        'Hôm nay là $dateStr, giờ hiện tại là $timeStr.\n\n'
+        'QUAN TRỌNG:\n'
+        '- KHÔNG BAO GIỜ dùng markdown (không **, không #, không *, không ```)\n'
+        '- Trả lời thuần túy bằng plain text\n'
+        '- Trả lời ngắn gọn, thân thiện bằng tiếng Việt\n'
+        '- Luôn dùng năm ${now.year}\n\n'
+
+        'DANH SÁCH TASK HIỆN TẠI:\n$taskData\n\n'
+
+        'QUYỀN HẠN CỦA BẠN:\n'
+        '1. TRẢ LỜI CÂU HỎI: Phân tích danh sách tasks, thống kê, so sánh\n'
+        '2. TẠO TASK: Trả về JSON + dòng ---\n'
+        '3. ĐÁNH DẤU HOÀN THÀNH: Dùng actions\n'
+        '4. XÓA TASK: Dùng actions\n'
+        '5. HOÀN TÁC (undo): Dùng actions\n\n'
+
+        'KHI TẠO TASK, trả về đúng 2 phần, phân tách bằng dòng "---":\n'
+        'Phần 1: {"tasks":[{"title":"...","date":"YYYY-MM-DD","time":"HH:mm","category":"class|exam|assignment|personal","reminder_minutes":0}]}\n'
+        'Phần 2: Tin nhắn giải thích\n\n'
+
+        'KHI THỰC THI HÀNH ĐỘNG (hoàn thành, xóa, hoàn tác), trả về:\n'
+        '{"actions":[{"action":"toggle","taskId":"id_cua_task"}]}\n'
         '---\n'
-        'Mình đã lên lịch trận đấu bóng vào thứ 6 ngày 11/09/2026 lúc 18:00. Nhắc trước 1 giờ.\n\n'
-        'Ví dụ nhiều task:\n'
-        '{"tasks":['
-        '{"title":"Họp team","date":"2026-09-03","time":"09:00","category":"personal","reminder_minutes":30},'
-        '{"title":"Nộp báo cáo","date":"2026-09-05","time":"17:00","category":"assignment","reminder_minutes":120},'
-        '{"title":"Mua quà mẹ","date":"2026-09-02","time":"20:00","category":"personal","reminder_minutes":null}'
-        ']}\n'
+        'Tin nhắn giải thích cho người dùng\n\n'
+
+        'Nhiều actions kết hợp được:\n'
+        '{"actions":[{"action":"toggle","taskId":"123"},{"action":"delete","taskId":"456"}]}\n'
         '---\n'
-        'Mình đã lên lịch 3 việc cho bạn: họp team sáng mai 9h, nộp báo cáo thứ 6 lúc 17h, và mua quà cho mẹ tối nay.\n\n'
-        'KHÔNG BAO GIỜ dùng năm 2024 hoặc 2025. Luôn dùng năm ${now.year}. '
-        'Nếu KHÔNG phải yêu cầu tạo task, chỉ trả lời bằng tiếng Việt bình thường, KHÔNG có JSON. '
-        'Output LUÔN là {"tasks":[...]} chứ KHÔNG phải {"task":{...}}.';
+        'Mình đã hoàn thành task 123 và xóa task 456.\n\n'
+
+        'Nếu KHÔNG phải tạo task hay hành động, chỉ trả lời bằng tiếng Việt plain text, KHÔNG có JSON.';
+  }
+
+  String _buildTaskDataForAI() {
+    final tasks = widget.taskService.tasks;
+    if (tasks.isEmpty) return '(Chưa có task nào)';
+
+    final lines = <String>[];
+
+    for (final task in tasks) {
+      final status = task.isDone
+          ? 'DONE'
+          : task.isOverdue
+              ? 'OVERDUE'
+              : task.status == TaskStatus.snoozed
+                  ? 'SNOOZED'
+                  : 'PENDING';
+
+      final parts = <String>[
+        '[$status] ${task.title}',
+        'id: ${task.id}',
+        'category: ${task.category.label}',
+      ];
+
+      if (task.dueDate != null) {
+        final d = task.dueDate!;
+        final datePart = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+        if (task.dueTime != null) {
+          final t = task.dueTime!;
+          parts.add('due: $datePart ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
+        } else {
+          parts.add('due: $datePart');
+        }
+      } else {
+        parts.add('due: none');
+      }
+
+      if (task.description.isNotEmpty) {
+        parts.add('desc: ${task.description}');
+      }
+      if (task.repeatRule != null) {
+        parts.add('repeat: ${task.repeatRule}');
+      }
+
+      lines.add(parts.join(', '));
+    }
+
+    final pending = tasks.where((t) => !t.isDone).length;
+    final done = tasks.where((t) => t.isDone).length;
+    final overdue = tasks.where((t) => t.isOverdue).length;
+
+    return 'Tổng: ${tasks.length} tasks ($pending đang chờ, $done hoàn thành, $overdue quá hạn)\n\n'
+        '${lines.join('\n')}';
   }
 
   ChatMessage _parseResponse(String response) {
-    final trimmed = response.trim();
+    var trimmed = response.trim();
 
-    // Try parse task JSON + message format (separated by ---)
+    // Strip markdown formatting
+    trimmed = _stripMarkdown(trimmed);
+
+    // Try parse JSON + message format (separated by ---)
     if (trimmed.contains('---')) {
       final parts = trimmed.split('---');
       if (parts.length >= 2) {
         final jsonPart = parts[0].trim();
         final messagePart = parts.sublist(1).join('---').trim();
 
-        try {
-          final data = jsonDecode(jsonPart) as Map<String, dynamic>;
-          // Support both new {"tasks":[...]} and legacy {"task":{...}}
-          List<dynamic> rawTasks;
-          if (data['tasks'] is List) {
-            rawTasks = data['tasks'] as List;
-          } else if (data['task'] is Map) {
-            rawTasks = [data['task'] as Map<String, dynamic>];
-          } else {
-            rawTasks = [];
-          }
-
-          if (rawTasks.isNotEmpty) {
-            final suggestions = <TaskSuggestion>[];
-            for (final raw in rawTasks) {
-              if (raw is! Map) continue;
-              final task = raw;
-              final title = (task['title'] as String?)?.trim() ?? '';
-              if (title.isEmpty) continue;
-
-              DateTime? dueDate;
-              if (task['date'] != null) {
-                dueDate = DateTime.tryParse(task['date'] as String);
-              }
-
-              DateTime? dueTime;
-              if (task['time'] != null && dueDate != null) {
-                final timeParts = (task['time'] as String).split(':');
-                if (timeParts.length == 2) {
-                  dueTime = DateTime(
-                    dueDate.year, dueDate.month, dueDate.day,
-                    int.parse(timeParts[0]),
-                    int.parse(timeParts[1]),
-                  );
-                }
-              }
-
-              TaskCategory category = TaskCategory.personal;
-              final catRaw = task['category'];
-              if (catRaw is String && catRaw.isNotEmpty) {
-                final catStr = catRaw.toLowerCase();
-                if (catStr == 'class') {
-                  category = TaskCategory.class_;
-                } else if (catStr == 'exam') {
-                  category = TaskCategory.exam;
-                } else if (catStr == 'assignment') {
-                  category = TaskCategory.assignment;
-                }
-              }
-
-              int? reminderMinutes;
-              final reminderRaw = task['reminder_minutes'];
-              if (reminderRaw is int) {
-                reminderMinutes = reminderRaw;
-              } else if (reminderRaw is num) {
-                reminderMinutes = reminderRaw.toInt();
-              } else if (reminderRaw is String) {
-                reminderMinutes = int.tryParse(reminderRaw);
-              }
-
-              suggestions.add(TaskSuggestion(
-                title: title,
-                dueDate: dueDate,
-                dueTime: dueTime,
-                category: category,
-                preReminderOffset: reminderMinutes,
-              ));
-            }
-
-            if (suggestions.isNotEmpty) {
-              final defaultText = suggestions.length == 1
-                  ? 'Đã tạo task: ${suggestions.first.title}'
-                  : 'Mình đã lên lịch ${suggestions.length} việc cho bạn.';
-              return ChatMessage(
-                text: messagePart.isNotEmpty ? messagePart : defaultText,
-                isUser: false,
-                taskSuggestions: suggestions,
-              );
-            }
-          }
-        } catch (_) {}
+        final result = _tryParseJsonAndMessage(jsonPart, messagePart);
+        if (result != null) return result;
       }
     }
 
-    // Try parse as checklist JSON
+    // Fallback: no --- separator, try to find JSON at start of response
+    final jsonMatch = RegExp(r'(\{[\s\S]*\})').firstMatch(trimmed);
+    if (jsonMatch != null) {
+      final jsonPart = jsonMatch.group(1)!;
+      final messagePart = trimmed.substring(jsonMatch.end).trim();
+      final result = _tryParseJsonAndMessage(jsonPart, messagePart);
+      if (result != null) return result;
+    }
+
+    return ChatMessage(text: trimmed, isUser: false);
+  }
+
+  ChatMessage? _tryParseJsonAndMessage(String jsonPart, String messagePart) {
     try {
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-        final List<dynamic> items = jsonDecode(trimmed);
-        if (items.isNotEmpty && items[0] is Map && items[0].containsKey('title')) {
+      final data = jsonDecode(jsonPart) as Map<String, dynamic>;
+
+      // Handle actions JSON
+      if (data['actions'] is List) {
+        final actions = (data['actions'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        return ChatMessage(
+          text: messagePart.isNotEmpty ? messagePart : 'Da thuc hien.',
+          isUser: false,
+          actions: actions,
+        );
+      }
+
+      // Handle tasks JSON
+      List<dynamic> rawTasks;
+      if (data['tasks'] is List) {
+        rawTasks = data['tasks'] as List;
+      } else if (data['task'] is Map) {
+        rawTasks = [data['task'] as Map<String, dynamic>];
+      } else {
+        rawTasks = [];
+      }
+
+      if (rawTasks.isNotEmpty) {
+        final suggestions = <TaskSuggestion>[];
+        for (final raw in rawTasks) {
+          if (raw is! Map) continue;
+          final task = raw;
+          final title = (task['title'] as String?)?.trim() ?? '';
+          if (title.isEmpty) continue;
+
+          DateTime? dueDate;
+          if (task['date'] != null) {
+            dueDate = DateTime.tryParse(task['date'] as String);
+          }
+
+          DateTime? dueTime;
+          if (task['time'] != null && dueDate != null) {
+            final timeParts = (task['time'] as String).split(':');
+            if (timeParts.length == 2) {
+              dueTime = DateTime(
+                dueDate.year, dueDate.month, dueDate.day,
+                int.parse(timeParts[0]),
+                int.parse(timeParts[1]),
+              );
+            }
+          }
+
+          TaskCategory category = TaskCategory.personal;
+          final catRaw = task['category'];
+          if (catRaw is String && catRaw.isNotEmpty) {
+            final catStr = catRaw.toLowerCase();
+            if (catStr == 'class') {
+              category = TaskCategory.class_;
+            } else if (catStr == 'exam') {
+              category = TaskCategory.exam;
+            } else if (catStr == 'assignment') {
+              category = TaskCategory.assignment;
+            }
+          }
+
+          int? reminderMinutes;
+          final reminderRaw = task['reminder_minutes'];
+          if (reminderRaw is int) {
+            reminderMinutes = reminderRaw;
+          } else if (reminderRaw is num) {
+            reminderMinutes = reminderRaw.toInt();
+          } else if (reminderRaw is String) {
+            reminderMinutes = int.tryParse(reminderRaw);
+          }
+
+          suggestions.add(TaskSuggestion(
+            title: title,
+            dueDate: dueDate,
+            dueTime: dueTime,
+            category: category,
+            preReminderOffset: reminderMinutes,
+          ));
+        }
+
+        if (suggestions.isNotEmpty) {
+          final defaultText = suggestions.length == 1
+              ? 'Mình đã sắp xếp cho bạn lịch ${suggestions.first.title} bạn xác nhận giúp mình nhé'
+              : 'Mình đã sắp xếp cho bạn ${suggestions.length} lịch, bạn xác nhận giúp mình nhé';
           return ChatMessage(
-            text: response,
+            text: messagePart.isNotEmpty ? messagePart : defaultText,
             isUser: false,
-            isChecklist: true,
-            checklistItems: items
-                .map((e) => ChecklistItem(title: e['title'] as String))
-                .toList(),
+            taskSuggestions: suggestions,
           );
         }
       }
     } catch (_) {}
+    return null;
+  }
 
-    return ChatMessage(text: response, isUser: false);
+  String _stripMarkdown(String text) {
+    var result = text;
+    // Remove bold/italic markers
+    result = result.replaceAll(RegExp(r'\*{1,3}'), '');
+    // Remove headers
+    result = result.replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '');
+    // Remove inline code
+    result = result.replaceAll('`', '');
+    // Remove code blocks
+    result = result.replaceAll('```', '');
+    // Remove horizontal rules
+    result = result.replaceAll(RegExp(r'^---+$', multiLine: true), '');
+    // Clean up multiple blank lines
+    result = result.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return result.trim();
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final navBarHeight = 64.0;
+    final bottomSafeArea = MediaQuery.of(context).padding.bottom;
+    final totalBottomOffset = navBarHeight + bottomSafeArea;
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        maxHeight: MediaQuery.of(context).size.height * 0.9 - totalBottomOffset,
       ),
+      margin: EdgeInsets.only(bottom: totalBottomOffset),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.background,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppRadius.xl),
+        ),
+        border: Border.all(
+          color: AppColors.border,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -394,7 +519,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
                         'Powered by Gemini',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textMuted,
+                          color: Color(0xFFA0AAB2),
                         ),
                       ),
                     ],
@@ -407,9 +532,8 @@ class _AiChatPanelState extends State<AiChatPanel> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: AppColors.background,
+                      color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(color: AppColors.border, width: 0.5),
                     ),
                     child: const Icon(
                       Icons.close_rounded,
@@ -497,6 +621,12 @@ class _AiChatPanelState extends State<AiChatPanel> {
   }
 
   void _addSingleTaskFromSuggestion(ChatMessage msg, int index) async {
+    final addedKey = '${msg.timestamp.millisecondsSinceEpoch}_$index';
+    // Guard: prevent double-tap
+    if (_addedSuggestionKeys.contains(addedKey)) return;
+    _addedSuggestionKeys.add(addedKey);
+    setState(() {});
+
     final suggestion = msg.taskSuggestions![index];
     await widget.taskService.addTask(
       title: suggestion.title,
@@ -505,29 +635,17 @@ class _AiChatPanelState extends State<AiChatPanel> {
       category: suggestion.category,
       preReminderOffset: suggestion.preReminderOffset,
     );
-    if (!mounted) return;
-    setState(() {
-      _addedSuggestionKeys.add('${msg.timestamp.millisecondsSinceEpoch}_$index');
-    });
-    _scrollToBottom();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Đã thêm "${suggestion.title}" vào lịch')),
-          ],
-        ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-      ),
-    );
   }
 
   void _addAllTasksFromSuggestions(ChatMessage msg) async {
     final suggestions = msg.taskSuggestions!;
+    final ts = msg.timestamp.millisecondsSinceEpoch;
+    // Guard: mark all as added immediately
+    for (int i = 0; i < suggestions.length; i++) {
+      _addedSuggestionKeys.add('${ts}_$i');
+    }
+    setState(() {});
+
     for (final suggestion in suggestions) {
       await widget.taskService.addTask(
         title: suggestion.title,
@@ -537,32 +655,6 @@ class _AiChatPanelState extends State<AiChatPanel> {
         preReminderOffset: suggestion.preReminderOffset,
       );
     }
-    if (!mounted) return;
-    setState(() {
-      final ts = msg.timestamp.millisecondsSinceEpoch;
-      for (int i = 0; i < suggestions.length; i++) {
-        _addedSuggestionKeys.add('${ts}_$i');
-      }
-      _messages.add(ChatMessage(
-        text: 'Đã thêm tất cả ${suggestions.length} task vào lịch!',
-        isUser: false,
-      ));
-    });
-    _scrollToBottom();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Đã thêm ${suggestions.length} task vào lịch')),
-          ],
-        ),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-      ),
-    );
   }
 
   Widget _buildTaskSuggestionMessage(ChatMessage msg) {
@@ -736,7 +828,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.background.withValues(alpha: 0.5),
+          color: AppColors.background.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: isAdded
@@ -860,7 +952,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
           margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             gradient: AppGradient.primary,
             borderRadius: const BorderRadius.only(
@@ -930,15 +1022,10 @@ class _AiChatPanelState extends State<AiChatPanel> {
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                      horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.background,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(AppRadius.lg),
-                      bottomLeft: Radius.circular(AppRadius.lg),
-                      bottomRight: Radius.circular(AppRadius.lg),
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     border: Border.all(
                       color: AppColors.border,
                       width: 0.5,
@@ -1038,12 +1125,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppColors.background,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(AppRadius.lg),
-                      bottomLeft: Radius.circular(AppRadius.lg),
-                      bottomRight: Radius.circular(AppRadius.lg),
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     border: Border.all(
                       color: AppColors.border,
                       width: 0.5,
@@ -1159,12 +1241,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
                   horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.background,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(AppRadius.lg),
-                  bottomLeft: Radius.circular(AppRadius.lg),
-                  bottomRight: Radius.circular(AppRadius.lg),
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(
                   color: AppColors.border,
                   width: 0.5,
@@ -1208,14 +1285,19 @@ class _AiChatPanelState extends State<AiChatPanel> {
   }
 
   Widget _buildInputBar() {
-    return GlassContainer(
-      padding: EdgeInsets.zero,
-      margin: EdgeInsets.zero,
-      opacity: 0.1,
-      borderRadius: BorderRadius.circular(20),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.border,
+          width: 0.5,
+        ),
+      ),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 44),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             Icon(
@@ -1280,10 +1362,12 @@ class _AiChatPanelState extends State<AiChatPanel> {
                           color: AppColors.textMuted,
                         ),
                       )
-                    : Icon(
-                        Icons.send_rounded,
-                        size: 14,
-                        color: AppColors.onAccent,
+                    : Center(
+                        child: Icon(
+                          Icons.send_rounded,
+                          size: 14,
+                          color: AppColors.onAccent,
+                        ),
                       ),
               ),
             ),
@@ -1293,3 +1377,4 @@ class _AiChatPanelState extends State<AiChatPanel> {
     );
   }
 }
+

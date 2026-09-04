@@ -1,13 +1,13 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -23,6 +23,7 @@ import 'services/gemini_service.dart';
 import 'services/theme_service.dart';
 import 'services/auto_update_service.dart';
 import 'services/feedback_service.dart';
+import 'services/notification_service.dart';
 import 'services/firestore_repository.dart';
 import 'services/ai_parser_service.dart';
 import 'services/custom_background_service.dart';
@@ -32,8 +33,8 @@ import 'screens/calendar_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/update_check_dialog.dart';
-import 'shared/widgets/ai_chat_button.dart';
 import 'shared/widgets/ai_chat_panel.dart';
+import 'shared/widgets/theme_video_background.dart';
 import 'shared/widgets/custom_background_widget.dart';
 import 'shared/widgets/cyberpunk_background.dart';
 
@@ -194,8 +195,9 @@ class BootstrapServices {
   final AutoUpdateService updateService;
   final CustomBackgroundService? customBackgroundService;
   final LanguageService languageService;
+  final StreamSubscription<bool>? _authSubscription;
 
-  const BootstrapServices({
+  BootstrapServices({
     required this.noteService,
     required this.syncService,
     required this.taskService,
@@ -205,14 +207,18 @@ class BootstrapServices {
     required this.updateService,
     this.customBackgroundService,
     required this.languageService,
-  });
+    StreamSubscription<bool>? authSubscription,
+  }) : _authSubscription = authSubscription;
+
+  void dispose() {
+    _authSubscription?.cancel();
+  }
 }
 
 Future<BootstrapServices> _initServices() async {
   _rawLog('_initServices: start');
   StartupLog.mark('timezone');
   tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
   try {
     StartupLog.mark('firebase-init');
@@ -267,7 +273,7 @@ Future<BootstrapServices> _initServices() async {
   StartupLog.mark('storage');
 
   StartupLog.mark('noteService-init');
-  final noteService = NoteService(storageService);
+  final noteService = NoteService(storageService, authService: authService);
   StartupLog.mark('syncService-init');
   final syncService = SyncService(noteService);
   StartupLog.mark('taskService-init');
@@ -355,7 +361,7 @@ Future<BootstrapServices> _initServices() async {
 
   // Listen to auth changes → reload per-user data
   StartupLog.mark('authListener-init');
-  authService.authStateChanges.listen((isLoggedIn) async {
+  final authSubscription = authService.authStateChanges.listen((isLoggedIn) async {
     final userId = isLoggedIn ? authService.userId : null;
     await storageService.reloadForUser(userId);
     await taskService.reloadForUser(userId);
@@ -375,6 +381,7 @@ Future<BootstrapServices> _initServices() async {
     updateService: updateService,
     customBackgroundService: customBackgroundService,
     languageService: languageService,
+    authSubscription: authSubscription,
   );
 }
 
@@ -471,42 +478,162 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
-  final List<int> _tabHistory = [0];
-  late final List<Widget> _screens;
+  int _previousIndex = 0;
+  StreamSubscription<String>? _notifTapSub;
 
   /// Clamp _currentIndex to a safe range to prevent IndexedStack out-of-bounds.
   int get _safeIndex {
-    if (_screens.isEmpty) return 0;
-    if (_currentIndex < 0 || _currentIndex >= _screens.length) return 0;
+    if (_currentIndex < 0) return 0;
+    if (_currentIndex >= _tabCount) return 0;
     return _currentIndex;
   }
+
+  int get _tabCount => 4;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     StartupLog.mark('mainShell-initState');
-    _screens = [
-      TaskScreen(taskService: widget.taskService, geminiService: widget.geminiService),
-      CalendarScreen(taskService: widget.taskService),
-      TimelineScreen(taskService: widget.taskService),
-      SettingsScreen(
-        authService: widget.authService,
-        geminiService: widget.geminiService,
-        themeService: widget.themeService,
-        taskService: widget.taskService,
-        customBackgroundService: widget.customBackgroundService,
-        languageService: widget.languageService,
-      ),
-    ];
+    widget.themeService.addListener(_onThemeChanged);
     StartupLog.mark('mainShell-screens-built');
 
-// Auto-check for updates after app renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       StartupLog.mark('first-frame-rendered');
+      _checkNotificationPermission();
       _checkForUpdates();
     });
+
+    // Listen to notification taps — navigate to Tasks tab
+    _notifTapSub = widget.taskService.onNotificationTappedStream.listen((taskId) {
+      if (!mounted) return;
+      _onNavTap(0); // Switch to Tasks tab
+      // Small delay to ensure tab switch completes
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã mở task từ thông báo'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+    });
+  }
+
+  Future<void> _checkNotificationPermission() async {
+    final notifService = NotificationService();
+    // Only check status, don't request - permission is requested on first task creation
+    await notifService.init();
+    final granted = await notifService.areNotificationsEnabled();
+    if (!granted && mounted) {
+      _showNotificationReminderDialog();
+    }
+  }
+
+  void _showNotificationReminderDialog() async {
+    final notifService = NotificationService();
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notifications_none_rounded,
+                      size: 48, color: AppColors.primary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nhắc nhở thông báo',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Để không bỏ lỡ công việc, hãy bật thông báo cho app',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, 'dismiss'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: AppColors.textMuted.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                          child: Text('Để sau'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, 'settings'),
+                          style: TextButton.styleFrom(
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text('Mở Cài đặt',
+                              style: TextStyle(color: AppColors.primary)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result == 'settings') {
+      await notifService.openNotificationSettings();
+    }
   }
 
   Future<void> _checkForUpdates() async {
@@ -515,7 +642,6 @@ class _MainShellState extends State<MainShell> {
       if (!shouldCheck) return;
 
       final update = await widget.updateService.checkForUpdate();
-      await widget.updateService.markChecked();
 
       if (update != null && mounted) {
         final result = await showDialog<String>(
@@ -524,21 +650,48 @@ class _MainShellState extends State<MainShell> {
           builder: (_) => UpdateCheckDialog(updateService: widget.updateService),
         );
         if (result == 'skip' || result == 'later') {
+          await widget.updateService.markChecked();
           widget.updateService.clearPendingUpdate();
+        } else {
+          await widget.updateService.markChecked();
         }
+      } else {
+        await widget.updateService.markChecked();
       }
     } catch (e) {
-      // Update check must never break the app
+      debugPrint('[UpdateCheck] Error: $e');
     }
   }
 
   void _onNavTap(int index) {
     if (_currentIndex == index) return;
     setState(() {
+      _previousIndex = _currentIndex;
       _currentIndex = index;
-      _tabHistory.remove(index);
-      _tabHistory.add(index);
     });
+  }
+
+  void _onThemeChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.themeService.removeListener(_onThemeChanged);
+    _notifTapSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+      await widget.taskService.rescheduleNotifications();
+      await NotificationService().fireMissedNotifications(widget.taskService.tasks);
+      _checkForUpdates();
+    }
   }
 
   @override
@@ -546,26 +699,34 @@ class _MainShellState extends State<MainShell> {
     StartupLog.mark('mainShell-build');
     final desktop = isDesktopPlatform;
     return PopScope(
-      canPop: _tabHistory.length <= 1,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (_tabHistory.length > 1) {
+        if (_previousIndex != _currentIndex) {
           setState(() {
-            _tabHistory.removeLast();
-            _currentIndex = _tabHistory.last;
+            final temp = _currentIndex;
+            _currentIndex = _previousIndex;
+            _previousIndex = temp;
           });
         }
       },
-      child: widget.customBackgroundService != null
-          ? CustomBackgroundWidget(
-              backgroundService: widget.customBackgroundService!,
-              child: CyberpunkBackground(
+      child: ThemeVideoBackground(
+        themeService: widget.themeService,
+        child: widget.customBackgroundService != null
+            ? CustomBackgroundWidget(
+                backgroundService: widget.customBackgroundService!,
+                child: CyberpunkBackground(
+                  backgroundColor: Colors.transparent,
+                  showOrbs: widget.themeService.detailedBackground,
+                  child: _buildScaffold(context, desktop),
+                ),
+              )
+            : CyberpunkBackground(
+                backgroundColor: Colors.transparent,
+                showOrbs: widget.themeService.detailedBackground,
                 child: _buildScaffold(context, desktop),
               ),
-            )
-          : CyberpunkBackground(
-              child: _buildScaffold(context, desktop),
-            ),
+      ),
     );
   }
 
@@ -590,42 +751,47 @@ class _MainShellState extends State<MainShell> {
                   },
                   child: MouseRegion(
                     cursor: SystemMouseCursors.move,
-                    child: Container(
-                      height: 32,
-                      color: AppColors.surface,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: DragToMoveArea(
-                              child: Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 12),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 14,
-                                      height: 14,
-                                      decoration: BoxDecoration(
-                                        gradient: AppGradient.primary,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Icon(Icons.task_alt_rounded,
-                                          size: 8, color: Colors.white),
+                    child: ClipRRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Container(
+                          height: 32,
+                          color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 3),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: DragToMoveArea(
+                                  child: Container(
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 12),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 14,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            gradient: AppGradient.primary,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Icon(Icons.task_alt_rounded,
+                                              size: 8, color: Colors.white),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text('SuperNote',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.textMuted
+                                                    .withValues(alpha: 0.6))),
+                                      ],
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text('SuperNote',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.textMuted
-                                                .withValues(alpha: 0.6))),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
+                              const WindowControls(),
+                            ],
                           ),
-                          const WindowControls(),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -635,79 +801,133 @@ class _MainShellState extends State<MainShell> {
               Expanded(
                 child: SafeArea(
                   bottom: false,
-                  child: _screens.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Đang tải...',
-                            style: TextStyle(color: AppColors.textMuted),
-                          ),
-                        )
-                      : IndexedStack(
-                          index: _safeIndex,
-                          children: _screens,
-                        ),
+                  child: IndexedStack(
+                    index: _safeIndex,
+                    children: [
+                      TaskScreen(taskService: widget.taskService, geminiService: widget.geminiService),
+                      CalendarScreen(taskService: widget.taskService),
+                      TimelineScreen(taskService: widget.taskService),
+                      SettingsScreen(
+                        authService: widget.authService,
+                        geminiService: widget.geminiService,
+                        themeService: widget.themeService,
+                        taskService: widget.taskService,
+                        customBackgroundService: widget.customBackgroundService,
+                        languageService: widget.languageService,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-              // ===== BOTTOM NAVIGATION (3 tabs: Tasks, Calendar, Settings) =====
+              // ===== BOTTOM NAVIGATION (4 tabs + center AI FAB) =====
               SafeArea(
                 top: false,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: Border(
-                        top: BorderSide(color: AppColors.border, width: 0.5)),
-                  ),
-                  child: NavigationBar(
-                    selectedIndex: _currentIndex,
-                    onDestinationSelected: _onNavTap,
-                    backgroundColor: Colors.transparent,
-                    surfaceTintColor: Colors.transparent,
-                    height: 64,
-                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                destinations: [
-                  NavigationDestination(
-                    icon: const Icon(Icons.task_alt_outlined, size: 22),
-                    selectedIcon: Icon(Icons.task_alt_rounded,
-                        size: 22, color: AppColors.primary),
-                    label: 'Tasks',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.calendar_today_outlined, size: 22),
-                    selectedIcon: Icon(Icons.calendar_today_rounded,
-                        size: 22, color: AppColors.primary),
-                    label: 'Calendar',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.view_timeline_outlined, size: 22),
-                    selectedIcon: Icon(Icons.view_timeline_rounded,
-                        size: 22, color: AppColors.primary),
-                    label: 'Timeline',
-                  ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.settings_outlined, size: 22),
-                    selectedIcon: Icon(Icons.settings_rounded,
-                        size: 22, color: AppColors.primary),
-                    label: 'Settings',
-                  ),
-                ],
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 3),
+                        border: Border(
+                            top: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                width: 1)),
+                      ),
+                      child: SizedBox(
+                        height: 64,
+                        child: Row(
+                          children: [
+                            // Tasks
+                            _buildNavItem(0, Icons.task_alt_outlined, Icons.task_alt_rounded, 'Tasks'),
+                            // Calendar
+                            _buildNavItem(1, Icons.calendar_today_outlined, Icons.calendar_today_rounded, 'Calendar'),
+                            // Center AI FAB
+                            _buildCenterFab(),
+                            // Timeline
+                            _buildNavItem(2, Icons.view_timeline_outlined, Icons.view_timeline_rounded, 'Timeline'),
+                            // Settings
+                            _buildNavItem(3, Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
 
-          // ===== AI CHAT BUTTON (floating, mobile only, hidden on Settings & Calendar) =====
-          if (!desktop && _currentIndex != 3 && _currentIndex != 1)
-            Positioned(
-              bottom: 80,
-              right: 16,
-              child: AiChatButton(
-                onTap: () => AiChatPanel.show(
-                    context, widget.geminiService, widget.taskService),
+          // ===== AI CHAT BUTTON is now integrated in bottom nav bar =====
+        ],
+      ),
+    );
+  }
+
+  // ===== CUSTOM NAV ITEM =====
+  Widget _buildNavItem(int index, IconData icon, IconData selectedIcon, String label) {
+    final isSelected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _onNavTap(index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isSelected ? selectedIcon : icon,
+              size: 22,
+              color: isSelected ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.6),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.6),
               ),
             ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== CENTER AI FAB =====
+  Widget _buildCenterFab() {
+    return Expanded(
+      child: Center(
+        child: GestureDetector(
+          onTap: () => AiChatPanel.show(
+              context, widget.geminiService, widget.taskService),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: AppGradient.primary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              size: 22,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }

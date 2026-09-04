@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 
@@ -28,11 +29,22 @@ class TaskService {
 
   TaskService({this._authService});
 
+  void dispose() {
+    _taskStreamController.close();
+    _notificationTappedController.close();
+  }
+
+  static String _generateId() {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final rand = Random.secure().nextInt(0xFFFFFFFF).toRadixString(16);
+    return '${ts}_$rand';
+  }
+
   String get _tasksKey => '$_prefix${_currentUserId ?? "guest"}';
 
   List<Task> get tasks => List.unmodifiable(_tasks);
   List<Task> get pendingTasks =>
-      _tasks.where((t) => t.status == TaskStatus.pending).toList();
+      _tasks.where((t) => t.status == TaskStatus.pending || t.status == TaskStatus.snoozed).toList();
   List<Task> get completedTasks =>
       _tasks.where((t) => t.status == TaskStatus.done).toList();
   List<Task> get snoozedTasks =>
@@ -76,6 +88,10 @@ class TaskService {
   }
 
   Future<void> reloadForUser(String? userId) async {
+    // Migrate guest data if a real user is logging in
+    if (userId != null) {
+      await _migrateGuestData(userId);
+    }
     _currentUserId = userId;
     _tasks = [];
     try {
@@ -84,6 +100,27 @@ class TaskService {
       developer.log('Reload tasks failed', error: e, name: 'TaskService');
       _tasks = [];
     }
+
+    // Pull from cloud and merge with local (multi-device sync)
+    try {
+      if (_firestore.isInitialized && _authService?.isLoggedIn == true && !(_authService?.isLocalGuest ?? true)) {
+        final merged = await _firestore.syncCloudToLocal(_tasks);
+        _tasks = merged;
+        // Save merged result locally
+        final prefs = await SharedPreferences.getInstance();
+        final current = prefs.getString(_tasksKey);
+        if (current != null) {
+          await prefs.setString('${_tasksKey}_backup', current);
+        }
+        final data = _tasks.map((e) => e.toMap()).toList();
+        await prefs.setString(_tasksKey, jsonEncode(data));
+        _taskStreamController.add(List.unmodifiable(_tasks));
+        developer.log('Cloud-to-local sync completed: ${_tasks.length} tasks', name: 'TaskService');
+      }
+    } catch (e) {
+      developer.log('Cloud-to-local sync failed', error: e, name: 'TaskService');
+    }
+
     try {
       await _rescheduleAllNotifications();
     } catch (e) {
@@ -91,8 +128,61 @@ class TaskService {
     }
   }
 
+  Future<void> _migrateGuestData(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final guestData = prefs.getString('$_prefix${'guest'}');
+    if (guestData == null) return;
+
+    try {
+      final guestDecoded = jsonDecode(guestData);
+      if (guestDecoded is! List) return;
+
+      final guestTasks = guestDecoded
+          .whereType<Map>()
+          .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
+
+      if (guestTasks.isEmpty) return;
+
+      // Load existing user tasks
+      final userData = prefs.getString('$_prefix$userId');
+      List<Task> userTasks = [];
+      if (userData != null) {
+        try {
+          final userDecoded = jsonDecode(userData);
+          if (userDecoded is List) {
+            userTasks = userDecoded
+                .whereType<Map>()
+                .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
+                .toList();
+          }
+        } catch (_) {}
+      }
+
+      // Merge: prepend guest tasks that don't already exist by ID
+      final existingIds = userTasks.map((t) => t.id).toSet();
+      final newTasks = guestTasks.where((t) => !existingIds.contains(t.id)).toList();
+      if (newTasks.isNotEmpty) {
+        final merged = [...newTasks, ...userTasks];
+        final mergedData = merged.map((e) => e.toMap()).toList();
+        await prefs.setString('$_prefix$userId', jsonEncode(mergedData));
+        developer.log('Migrated ${newTasks.length} guest tasks to user $userId', name: 'TaskService');
+      }
+
+      // Clean up guest data
+      await prefs.remove('$_prefix${'guest'}');
+      await prefs.remove('${_prefix}${'guest'}_backup');
+    } catch (e) {
+      developer.log('Guest data migration failed', error: e, name: 'TaskService');
+    }
+  }
+
   void _setupNotificationHandlers() {
-    _notificationService.onNotificationTapped = (taskId) {};
+    _notificationService.onNotificationTapped = (taskId) {
+      developer.log('Notification tapped for task: $taskId', name: 'TaskService');
+      _notificationTappedTaskId = taskId;
+      _notificationTappedController.add(taskId);
+    };
     _notificationService.onNotificationAction = (taskId, action) async {
       try {
         if (action == 'done') {
@@ -106,22 +196,61 @@ class TaskService {
     };
   }
 
+  // Stream for notification tap events — UI listens to navigate
+  final _notificationTappedController = StreamController<String>.broadcast();
+  Stream<String> get onNotificationTappedStream => _notificationTappedController.stream;
+  String? _notificationTappedTaskId;
+  String? consumeNotificationTap() {
+    final id = _notificationTappedTaskId;
+    _notificationTappedTaskId = null;
+    return id;
+  }
+
   Future<void> _loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString(_tasksKey);
     if (data != null) {
-      final decoded = jsonDecode(data);
-      if (decoded is List) {
-        _tasks = decoded
-            .whereType<Map>()
-            .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
-            .toList();
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is List) {
+          _tasks = decoded
+              .whereType<Map>()
+              .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
+              .toList();
+          return;
+        }
+      } catch (e) {
+        developer.log('JSON decode failed, attempting recovery', error: e, name: 'TaskService');
+        // Try to recover from backup
+        final backup = prefs.getString('${_tasksKey}_backup');
+        if (backup != null) {
+          try {
+            final decoded = jsonDecode(backup);
+            if (decoded is List) {
+              _tasks = decoded
+                  .whereType<Map>()
+                  .map((e) => Task.fromMap(Map<String, dynamic>.from(e)))
+                  .toList();
+              developer.log('Recovered ${_tasks.length} tasks from backup', name: 'TaskService');
+              // Restore the backup as primary
+              await prefs.setString(_tasksKey, backup);
+              return;
+            }
+          } catch (_) {}
+        }
+        // Last resort: save empty list to clear corrupted data
+        developer.log('No backup available, starting with empty task list', name: 'TaskService');
       }
     }
   }
 
   Future<void> _saveTasks() async {
     final prefs = await SharedPreferences.getInstance();
+    // Backup current data before overwriting
+    final current = prefs.getString(_tasksKey);
+    if (current != null) {
+      await prefs.setString('${_tasksKey}_backup', current);
+    }
     final data = _tasks.map((e) => e.toMap()).toList();
     await prefs.setString(_tasksKey, jsonEncode(data));
 
@@ -177,7 +306,7 @@ class TaskService {
     }
 
     final task = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateId(),
       title: preview.title,
       dueDate: preview.dueDate,
       dueTime: preview.dueTime,
@@ -190,6 +319,7 @@ class TaskService {
 
     _tasks.insert(0, task);
     await _saveTasks();
+    developer.log('addTask: "${task.title}" dueDate=${task.dueDate} dueTime=${task.dueTime} deadline=${task.deadline}', name: 'TaskService');
     try {
       await _notificationService.scheduleTaskNotification(task);
     } catch (e) {
@@ -198,19 +328,20 @@ class TaskService {
     return task;
   }
 
-  Future<AiParsedTask> addTaskFromAi(String input) async {
+  Future<Task> addTaskFromAi(String input) async {
     final parsed = await _aiParser.parseTaskInput(input);
     final task = parsed.toTask();
 
     _tasks.insert(0, task);
     await _saveTasks();
+    developer.log('addTaskFromAi: "${task.title}" dueDate=${task.dueDate} dueTime=${task.dueTime} deadline=${task.deadline}', name: 'TaskService');
     try {
       await _notificationService.scheduleTaskNotification(task);
     } catch (e) {
       developer.log('Schedule notification failed', error: e, name: 'TaskService');
     }
     _feedback.trigger(FeedbackType.aiSuccess);
-    return parsed;
+    return task;
   }
 
   Future<Task> addTask({
@@ -225,8 +356,26 @@ class TaskService {
     DateTime? repeatEndDate,
     int? preReminderOffset,
   }) async {
+    // Ensure notification permissions are checked
+    if (!_notificationService.permissionsGranted) {
+      await _notificationService.checkAndRequestPermissions();
+    }
+
+    // Validate: deadline cannot be in the past
+    if (dueDate != null && dueTime != null) {
+      final deadline = DateTime(dueDate.year, dueDate.month, dueDate.day, dueTime.hour, dueTime.minute);
+      if (deadline.isBefore(DateTime.now())) {
+        throw Exception('Thời gian đặt lịch không thể ở trong quá khứ');
+      }
+    } else if (dueDate != null) {
+      final deadline = DateTime(dueDate.year, dueDate.month, dueDate.day, 23, 59, 59);
+      if (deadline.isBefore(DateTime.now())) {
+        throw Exception('Thời gian đặt lịch không thể ở trong quá khứ');
+      }
+    }
+
     final task = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateId(),
       title: title,
       description: description,
       noteContent: noteContent,
@@ -236,12 +385,13 @@ class TaskService {
       category: category ?? TaskCategory.personal,
       repeatRule: repeatRule,
       repeatEndDate: repeatEndDate,
-      preReminderOffset: preReminderOffset,
+      preReminderOffset: preReminderOffset ?? await _notificationService.getDefaultPreReminder(),
       status: TaskStatus.pending,
     );
 
     _tasks.insert(0, task);
     await _saveTasks();
+    developer.log('addTask generic: "${task.title}" dueDate=${task.dueDate} dueTime=${task.dueTime} deadline=${task.deadline}', name: 'TaskService');
     try {
       await _notificationService.scheduleTaskNotification(task);
     } catch (e) {
@@ -252,28 +402,27 @@ class TaskService {
 
   Future<void> toggleTask(String taskId) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
-    if (index != -1) {
-      final current = _tasks[index];
-      final newStatus = current.isDone ? TaskStatus.pending : TaskStatus.done;
-      _tasks[index] = current.copyWith(status: newStatus);
-      await _saveTasks();
+    if (index == -1) return;
+    final current = _tasks[index];
+    final newStatus = current.isDone ? TaskStatus.pending : TaskStatus.done;
+    _tasks[index] = current.copyWith(status: newStatus);
+    await _saveTasks();
 
-      if (newStatus == TaskStatus.done) {
-        _feedback.trigger(FeedbackType.complete);
-        try {
-          await _notificationService.cancelTaskNotifications(current);
-        } catch (e) {
-          developer.log('Cancel notifications failed', error: e, name: 'TaskService');
-        }
-        if (current.repeatRule != null && current.repeatRule!.isNotEmpty) {
-          await _createNextOccurrence(current);
-        }
-      } else {
-        try {
-          await _notificationService.scheduleTaskNotification(current);
-        } catch (e) {
-          developer.log('Schedule notification failed', error: e, name: 'TaskService');
-        }
+    if (newStatus == TaskStatus.done) {
+      _feedback.trigger(FeedbackType.complete);
+      try {
+        await _notificationService.cancelTaskNotifications(current);
+      } catch (e) {
+        developer.log('Cancel notifications failed', error: e, name: 'TaskService');
+      }
+      if (current.repeatRule != null && current.repeatRule!.isNotEmpty) {
+        await _createNextOccurrence(current);
+      }
+    } else {
+      try {
+        await _notificationService.scheduleTaskNotification(current);
+      } catch (e) {
+        developer.log('Schedule notification failed', error: e, name: 'TaskService');
       }
     }
   }
@@ -288,7 +437,7 @@ class TaskService {
     }
 
     final nextTask = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _generateId(),
       title: task.title,
       description: task.description,
       noteContent: task.noteContent,
@@ -324,7 +473,10 @@ class TaskService {
       case 'weekly':
         return current.add(const Duration(days: 7));
       case 'monthly':
-        return DateTime(current.year, current.month + 1, current.day);
+        final nextMonth = current.month + 1 > 12 ? 1 : current.month + 1;
+        final nextYear = current.month + 1 > 12 ? current.year + 1 : current.year;
+        final maxDay = DateTime(nextYear, nextMonth + 1, 0).day;
+        return DateTime(nextYear, nextMonth, current.day.clamp(1, maxDay));
       default:
         if (rule.startsWith('weekly:')) {
           final daysStr = rule.substring(7);
@@ -354,11 +506,11 @@ class TaskService {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index != -1) {
       final current = _tasks[index];
-      final newDueDate = current.dueDate != null
-          ? current.dueDate!.add(duration)
-          : DateTime.now().add(duration);
+      final now = DateTime.now();
+      final newDeadline = now.add(duration);
       _tasks[index] = current.copyWith(
-        dueDate: newDueDate,
+        dueDate: DateTime(newDeadline.year, newDeadline.month, newDeadline.day),
+        dueTime: DateTime(2000, 1, 1, newDeadline.hour, newDeadline.minute),
         status: TaskStatus.snoozed,
       );
       await _saveTasks();
@@ -372,28 +524,16 @@ class TaskService {
   }
 
   Future<void> deleteTask(String taskId) async {
-    final task = _tasks.firstWhere(
-      (t) => t.id == taskId,
-      orElse: () => Task(id: '', title: ''),
-    );
-    if (task.id.isNotEmpty) {
-      try {
-        await _notificationService.cancelTaskNotifications(task);
-      } catch (e) {
-        developer.log('Cancel notifications failed', error: e, name: 'TaskService');
-      }
-    }
-    _tasks.removeWhere((t) => t.id == taskId);
-    await _saveTasks();
-
-    // Delete from cloud
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+    final task = _tasks[index];
     try {
-      if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
-        await _firestore.deleteTask(taskId);
-      }
+      await _notificationService.cancelTaskNotifications(task);
     } catch (e) {
-      developer.log('Cloud delete failed', error: e, name: 'TaskService');
+      developer.log('Cancel notifications failed', error: e, name: 'TaskService');
     }
+    _tasks.removeAt(index);
+    await _saveTasks();
     _feedback.trigger(FeedbackType.delete);
   }
 
@@ -425,7 +565,7 @@ class TaskService {
         category: category,
         repeatRule: repeatRule,
         repeatEndDate: repeatEndDate,
-        preReminderOffset: preReminderOffset,
+        preReminderOffset: preReminderOffset ?? current.preReminderOffset,
         status: status,
         attachments: attachments,
       );
@@ -433,27 +573,26 @@ class TaskService {
       await _saveTasks();
       try {
         await _notificationService.cancelTaskNotifications(current);
-        if (updated.status == TaskStatus.pending) {
+        if (updated.status == TaskStatus.pending || updated.status == TaskStatus.snoozed) {
           await _notificationService.scheduleTaskNotification(updated);
         }
       } catch (e) {
         developer.log('Notification update failed', error: e, name: 'TaskService');
-      }
-
-      // Update in cloud
-      try {
-        if (_firestore.isInitialized && _authService?.isLoggedIn == true) {
-          await _firestore.updateTask(taskId, updated.toMap());
-        }
-      } catch (e) {
-        developer.log('Cloud update failed', error: e, name: 'TaskService');
       }
     }
   }
 
   Future<void> _rescheduleAllNotifications() async {
     await _notificationService.rescheduleAllTasks(
-        pendingTasks);
+        [...pendingTasks, ...snoozedTasks]);
+  }
+
+  Future<void> rescheduleNotifications() async {
+    try {
+      await _rescheduleAllNotifications();
+    } catch (e) {
+      developer.log('Reschedule on resume failed', error: e, name: 'TaskService');
+    }
   }
 
   List<Task> getTasksForDate(DateTime date) {
@@ -471,7 +610,7 @@ class TaskService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
-    final thisWeekEnd = today.add(Duration(days: 7 - now.weekday));
+    final thisWeekEnd = today.add(Duration(days: 7 - now.weekday + 1));
 
     final groups = <String, List<Task>>{
       'Today': [],

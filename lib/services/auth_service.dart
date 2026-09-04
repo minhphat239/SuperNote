@@ -196,6 +196,32 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<bool> sendPasswordResetEmail(String email) async {
+    try {
+      _setLoading(true);
+      await _auth.sendPasswordResetEmail(email: email.trim()).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException('Kết nối Firebase quá thời gian. Vui lòng thử lại!'),
+      );
+      _isLoading = false;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _setError(parseAuthError(e));
+      debugPrint('[AuthService] Password reset failed: $e');
+      return false;
+    } on TimeoutException catch (e) {
+      _setError(e.toString());
+      debugPrint('[AuthService] Password reset timeout: $e');
+      return false;
+    } catch (e) {
+      _setError('Lỗi không xác định. Vui lòng thử lại.');
+      debugPrint('[AuthService] Password reset failed: $e');
+      return false;
+    }
+  }
+
   Future<bool> registerWithEmail(
       String email, String password, String name) async {
     try {
@@ -306,7 +332,16 @@ class AuthService extends ChangeNotifier {
   Future<void> clearSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      // Only remove user-specific keys, preserve app settings
+      final keys = prefs.getKeys().where((k) =>
+        k.startsWith('tasks_') ||
+        k.startsWith('notes_') ||
+        k == 'local_guest' ||
+        k == 'guest_id'
+      ).toList();
+      for (final key in keys) {
+        await prefs.remove(key);
+      }
     } catch (e) {
       debugPrint('[AuthService] Clear session failed: $e');
     }

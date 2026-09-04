@@ -6,7 +6,9 @@ import '../../core/theme/app_theme.dart';
 
 class CyberpunkBackground extends StatefulWidget {
   final Widget child;
-  const CyberpunkBackground({super.key, required this.child});
+  final Color? backgroundColor;
+  final bool showOrbs;
+  const CyberpunkBackground({super.key, required this.child, this.backgroundColor, this.showOrbs = true});
 
   @override
   State<CyberpunkBackground> createState() => _CyberpunkBackgroundState();
@@ -41,9 +43,26 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
 
   @override
   Widget build(BuildContext context) {
+    final useOrbs = widget.showOrbs && AppColors.hasDetailedOrbs;
+
+    if (!useOrbs) {
+      return Container(
+        color: widget.backgroundColor ?? AppColors.background,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              color: Colors.black.withValues(alpha: 0.4),
+            ),
+            widget.child,
+          ],
+        ),
+      );
+    }
+
     if (_isMobile) {
       return Container(
-        color: AppColors.background,
+        color: widget.backgroundColor ?? AppColors.background,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -57,6 +76,15 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
                 size: Size.infinite,
               ),
             ),
+            // BackdropFilter blur for cyberpunk background (16px per design spec)
+            BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(color: Colors.transparent),
+            ),
+            // Dark overlay for readability (0.4–0.6 per design spec)
+            Container(
+              color: Colors.black.withValues(alpha: 0.45),
+            ),
             widget.child,
           ],
         ),
@@ -67,7 +95,7 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
       animation: _controller,
       builder: (context, _) {
         return Container(
-          color: AppColors.background,
+          color: widget.backgroundColor ?? AppColors.background,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -82,7 +110,7 @@ class _CyberpunkBackgroundState extends State<CyberpunkBackground>
               ),
               // Layer 2: BackdropFilter blur — blends overlapping orbs
               BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                filter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
                 child: Container(color: Colors.transparent),
               ),
               // Layer 3: Content
@@ -116,6 +144,7 @@ class _OrbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.saveLayer(null, Paint()..blendMode = BlendMode.plus);
     final t = progress * 2 * pi;
 
     for (final def in _orbDefs) {
@@ -131,6 +160,8 @@ class _OrbPainter extends CustomPainter {
       final radius = def.size * 0.5;
 
       final paint = Paint()
+        ..isAntiAlias = true
+        ..filterQuality = FilterQuality.high
         ..shader = ui.Gradient.radial(
           Offset(cx, cy),
           radius,
@@ -144,6 +175,7 @@ class _OrbPainter extends CustomPainter {
 
       canvas.drawCircle(Offset(cx, cy), radius, paint);
     }
+    canvas.restore();
   }
 
   @override

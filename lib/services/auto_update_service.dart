@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,12 +51,24 @@ class UpdateInfo {
 
   bool get hasAsset => assets.isNotEmpty;
 
-  UpdateAsset? getRecommendedAsset() {
-    for (final asset in assets) {
-      final lower = asset.name.toLowerCase();
-      if (lower.endsWith('.apk')) return asset;
-      if (lower.endsWith('.exe')) return asset;
+  UpdateAsset? getRecommendedAsset([List<String>? deviceAbis]) {
+    // First: try to match device ABI for APK files
+    if (deviceAbis != null && deviceAbis.isNotEmpty) {
+      for (final asset in assets) {
+        final lower = asset.name.toLowerCase();
+        if (!lower.endsWith('.apk')) continue;
+        for (final abi in deviceAbis) {
+          if (lower.contains(abi)) return asset;
+        }
+      }
     }
+
+    // Second: any APK file
+    for (final asset in assets) {
+      if (asset.name.toLowerCase().endsWith('.apk')) return asset;
+    }
+
+    // Third: any other asset
     return assets.isNotEmpty ? assets.first : null;
   }
 
@@ -62,7 +76,10 @@ class UpdateInfo {
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) {
     final tagName = json['tag_name'] as String? ?? '';
-    final version = tagName.replaceAll('v', '').replaceAll('V', '');
+    final version = tagName
+        .replaceAll(RegExp(r'^[vV]'), '')
+        .split('+')
+        .first;
 
     final assetsData = json['assets'] as List<dynamic>? ?? [];
     final assets = assetsData.map((a) {
@@ -103,6 +120,7 @@ class AutoUpdateService extends ChangeNotifier {
   static const Duration _checkInterval = Duration(hours: 6);
 
   final FeedbackService _feedback = FeedbackService();
+  final Dio _dio = Dio();
 
   UpdateInfo? _pendingUpdate;
   double _downloadProgress = 0;
@@ -123,6 +141,18 @@ class AutoUpdateService extends ChangeNotifier {
     if (defaultTargetPlatform == TargetPlatform.android) return UpdatePlatform.android;
     if (defaultTargetPlatform == TargetPlatform.windows) return UpdatePlatform.windows;
     return UpdatePlatform.unknown;
+  }
+
+  Future<List<String>> _getDeviceAbis() async {
+    if (kIsWeb || currentPlatform != UpdatePlatform.android) return [];
+    try {
+      const channel = MethodChannel('com.example.super_note/update');
+      final abis = await channel.invokeMethod<List>('getSupportedAbis');
+      return abis?.cast<String>() ?? [];
+    } catch (e) {
+      developer.log('Failed to get device ABIs: $e', name: 'AutoUpdateService');
+      return [];
+    }
   }
 
   Future<UpdateInfo?> checkForUpdate() async {
@@ -191,7 +221,8 @@ class AutoUpdateService extends ChangeNotifier {
   Future<bool> startDownload() async {
     if (_pendingUpdate == null || _isDownloading) return false;
 
-    final asset = _pendingUpdate!.getRecommendedAsset();
+    final deviceAbis = await _getDeviceAbis();
+    final asset = _pendingUpdate!.getRecommendedAsset(deviceAbis);
     if (asset == null || asset.downloadUrl.isEmpty) {
       _error = 'Không tìm thấy file tải xuống';
       notifyListeners();
@@ -205,35 +236,62 @@ class AutoUpdateService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await getTemporaryDirectory();
+      final updateDir = Directory('${dir.path}/supernote_updates');
+      if (!await updateDir.exists()) {
+        await updateDir.create(recursive: true);
+      }
       final fileName = asset.name;
-      final file = File('${dir.path}/$fileName');
+      final file = File('${updateDir.path}/$fileName');
 
-      final request = http.Request('GET', Uri.parse(asset.downloadUrl));
-      final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
+      // Resume download if file partially exists
+      int startByte = 0;
+      if (await file.exists()) {
+        startByte = await file.length();
+        // If we already have the full file, skip download
+        if (asset.size > 0 && startByte >= asset.size) {
+          _downloadedFilePath = file.path;
+          _downloadComplete = true;
+          _isDownloading = false;
+          _downloadProgress = 1.0;
+          notifyListeners();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_downloadedFileKey, file.path);
+          _feedback.trigger(FeedbackType.complete);
+          return true;
+        }
+      }
 
-      if (streamedResponse.statusCode != 200) {
-        _error = 'Tải xuống thất bại (HTTP ${streamedResponse.statusCode})';
+      final response = await _dio.download(
+        asset.downloadUrl,
+        file.path,
+        deleteOnError: false,
+        options: Options(
+          headers: startByte > 0 ? {'Range': 'bytes=$startByte-'} : null,
+          receiveTimeout: const Duration(minutes: 10),
+          sendTimeout: const Duration(minutes: 10),
+        ),
+        onReceiveProgress: (received, total) {
+          final totalSize = asset.size > 0 ? asset.size : total;
+          if (totalSize > 0) {
+            final base = startByte > 0 ? startByte : 0;
+            _downloadProgress = (base + received) / totalSize;
+            notifyListeners();
+          }
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        _error = 'Tải xuống thất bại (HTTP ${response.statusCode})';
         _isDownloading = false;
         notifyListeners();
         return false;
       }
 
-      final contentLength = streamedResponse.contentLength ?? 0;
-      int received = 0;
-
-      final sink = file.openWrite();
-      await for (final chunk in streamedResponse.stream) {
-        received += chunk.length;
-        _downloadProgress = contentLength > 0 ? received / contentLength : 0;
-        notifyListeners();
-        sink.add(chunk);
-      }
-      await sink.close();
-
       _downloadedFilePath = file.path;
       _downloadComplete = true;
       _isDownloading = false;
+      _downloadProgress = 1.0;
       notifyListeners();
 
       final prefs = await SharedPreferences.getInstance();
@@ -242,6 +300,12 @@ class AutoUpdateService extends ChangeNotifier {
       developer.log('Download complete: ${file.path}', name: 'AutoUpdateService');
       _feedback.trigger(FeedbackType.complete);
       return true;
+    } on DioException catch (e) {
+      _error = 'Lỗi tải xuống: ${e.message ?? e.toString()}';
+      _isDownloading = false;
+      notifyListeners();
+      developer.log('Download error', error: e, name: 'AutoUpdateService');
+      return false;
     } catch (e) {
       _error = 'Lỗi tải xuống: ${e.toString()}';
       _isDownloading = false;
@@ -261,12 +325,22 @@ class AutoUpdateService extends ChangeNotifier {
       final platform = currentPlatform;
 
       if (platform == UpdatePlatform.android) {
-        // Fallback: use file:// URI and external app picker
-        final fileUri = Uri.file(_downloadedFilePath!);
-        if (await canLaunchUrl(fileUri)) {
-          return await launchUrl(fileUri, mode: LaunchMode.externalApplication);
+        const channel = MethodChannel('com.example.super_note/update');
+        try {
+          final uri = await channel.invokeMethod<String>('getUriForFile', {
+            'path': file.path,
+          });
+          if (uri != null) {
+            final contentUri = Uri.parse(uri);
+            return await launchUrl(
+              contentUri,
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        } catch (e) {
+          developer.log('FileProvider failed, trying fallback: $e', name: 'AutoUpdateService');
         }
-        // Last resort: open GitHub releases page
+
         return _openReleasesPage();
       }
 
@@ -322,7 +396,8 @@ class AutoUpdateService extends ChangeNotifier {
   }
 
   static List<int> _parseVersion(String v) {
-    final parts = v.split('.');
+    final clean = v.split('+').first;
+    final parts = clean.split('.');
     return [
       int.tryParse(parts.isNotEmpty ? parts[0] : '0') ?? 0,
       int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,

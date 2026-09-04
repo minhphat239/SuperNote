@@ -7,6 +7,7 @@ import android.os.Environment
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,6 +20,7 @@ import java.util.Locale
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.super_note/storage"
+    private val UPDATE_CHANNEL = "com.example.super_note/update"
     private val TAG = "SuperNote"
 
     override fun attachBaseContext(newBase: android.content.Context?) {
@@ -82,6 +84,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         Log.i(TAG, "configureFlutterEngine: super completed")
 
+        // Storage channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "isManageStorageGranted" -> {
@@ -94,6 +97,35 @@ class MainActivity : FlutterActivity() {
                 "openAppSettings" -> {
                     openAppSettings()
                     result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Update channel — returns content:// URI via FileProvider
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getUriForFile" -> {
+                    try {
+                        val path = call.argument<String>("path")
+                        if (path != null) {
+                            val file = File(path)
+                            val uri = FileProvider.getUriForFile(
+                                this,
+                                "${packageName}.fileProvider",
+                                file
+                            )
+                            result.success(uri.toString())
+                        } else {
+                            result.error("INVALID_PATH", "Path is null", null)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "FileProvider error: $e")
+                        result.error("FILE_PROVIDER_ERROR", e.message, null)
+                    }
+                }
+                "getSupportedAbis" -> {
+                    result.success(Build.SUPPORTED_ABIS.toList())
                 }
                 else -> result.notImplemented()
             }

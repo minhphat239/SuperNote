@@ -230,6 +230,60 @@ abstract class AppLocalizations {
   /// **'Thông báo sẽ được tạm dừng trong khoảng thời gian này'**
   String get quietHoursDesc;
 
+  /// No description provided for @timeStart.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bắt đầu'**
+  String get timeStart;
+
+  /// No description provided for @timeEnd.
+  ///
+  /// In vi, this message translates to:
+  /// **'Kết thúc'**
+  String get timeEnd;
+
+  /// No description provided for @detailedBackground.
+  ///
+  /// In vi, this message translates to:
+  /// **'Hình nền chi tiết'**
+  String get detailedBackground;
+
+  /// No description provided for @detailedBackgroundDesc.
+  ///
+  /// In vi, this message translates to:
+  /// **'Bật/tắt hiệu ứng orbs và animation nền'**
+  String get detailedBackgroundDesc;
+
+  /// No description provided for @attachmentFile.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tệp'**
+  String get attachmentFile;
+
+  /// No description provided for @attachmentCount.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count} tệp đính kèm'**
+  String attachmentCount(Object count);
+
+  /// No description provided for @attachFile.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đính kèm tệp'**
+  String get attachFile;
+
+  /// No description provided for @chooseFromDevice.
+  ///
+  /// In vi, this message translates to:
+  /// **'Chọn tệp từ thiết bị'**
+  String get chooseFromDevice;
+
+  /// No description provided for @filesAttached.
+  ///
+  /// In vi, this message translates to:
+  /// **'{count} tệp đã đính kèm'**
+  String filesAttached(Object count);
+
   /// No description provided for @accountTitle.
   ///
   /// In vi, this message translates to:
@@ -464,6 +518,12 @@ abstract class AppLocalizations {
   /// **'Xóa'**
   String get delete;
 
+  /// No description provided for @snooze.
+  ///
+  /// In vi, this message translates to:
+  /// **'Tạm hoãn'**
+  String get snooze;
+
   /// No description provided for @edit.
   ///
   /// In vi, this message translates to:
@@ -697,6 +757,60 @@ abstract class AppLocalizations {
   /// In vi, this message translates to:
   /// **'Lịch'**
   String get calendarTitle;
+
+  /// No description provided for @timelineTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Dòng thời gian'**
+  String get timelineTitle;
+
+  /// No description provided for @tasksTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Công việc'**
+  String get tasksTitle;
+
+  /// No description provided for @weekdayMon.
+  ///
+  /// In vi, this message translates to:
+  /// **'T2'**
+  String get weekdayMon;
+
+  /// No description provided for @weekdayTue.
+  ///
+  /// In vi, this message translates to:
+  /// **'T3'**
+  String get weekdayTue;
+
+  /// No description provided for @weekdayWed.
+  ///
+  /// In vi, this message translates to:
+  /// **'T4'**
+  String get weekdayWed;
+
+  /// No description provided for @weekdayThu.
+  ///
+  /// In vi, this message translates to:
+  /// **'T5'**
+  String get weekdayThu;
+
+  /// No description provided for @weekdayFri.
+  ///
+  /// In vi, this message translates to:
+  /// **'T6'**
+  String get weekdayFri;
+
+  /// No description provided for @weekdaySat.
+  ///
+  /// In vi, this message translates to:
+  /// **'T7'**
+  String get weekdaySat;
+
+  /// No description provided for @weekdaySun.
+  ///
+  /// In vi, this message translates to:
+  /// **'CN'**
+  String get weekdaySun;
 
   /// No description provided for @todayButton.
   ///
@@ -1088,6 +1202,12 @@ abstract class AppLocalizations {
   /// **'Có phiên bản mới'**
   String get updateNewVersion;
 
+  /// No description provided for @updateDescription.
+  ///
+  /// In vi, this message translates to:
+  /// **'App đã có phiên bản mới: {version}, vui lòng bấm cập nhật để tự động cập nhật'**
+  String updateDescription(Object version);
+
   /// No description provided for @updateSkip.
   ///
   /// In vi, this message translates to:
@@ -1097,7 +1217,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateNow.
   ///
   /// In vi, this message translates to:
-  /// **'Cập nhật ngay'**
+  /// **'Cập nhật'**
   String get updateNow;
 
   /// No description provided for @updateDownloading.
@@ -1387,6 +1507,24 @@ abstract class AppLocalizations {
   /// In vi, this message translates to:
   /// **'Đã xảy ra lỗi. Vui lòng thử lại.'**
   String get authGenericError;
+
+  /// No description provided for @authForgotPassword.
+  ///
+  /// In vi, this message translates to:
+  /// **'Quên mật khẩu?'**
+  String get authForgotPassword;
+
+  /// No description provided for @authPasswordResetSent.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư.'**
+  String get authPasswordResetSent;
+
+  /// No description provided for @aiGreeting.
+  ///
+  /// In vi, this message translates to:
+  /// **'Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.'**
+  String get aiGreeting;
 }
 
 class _AppLocalizationsDelegate

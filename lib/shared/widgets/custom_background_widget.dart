@@ -12,7 +12,7 @@ class CustomBackgroundWidget extends StatefulWidget {
     super.key,
     required this.backgroundService,
     required this.child,
-    this.overlayOpacity = 0.45,
+    this.overlayOpacity = 0.65,
   });
 
   @override
@@ -23,11 +23,18 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
     with WidgetsBindingObserver {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
+  int _videoInitGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.backgroundService.addListener(_onBackgroundChanged);
+    _initBackground();
+  }
+
+  void _onBackgroundChanged() {
+    _disposeVideo();
     _initBackground();
   }
 
@@ -35,6 +42,8 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
   void didUpdateWidget(CustomBackgroundWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.backgroundService != widget.backgroundService) {
+      oldWidget.backgroundService.removeListener(_onBackgroundChanged);
+      widget.backgroundService.addListener(_onBackgroundChanged);
       _disposeVideo();
       _initBackground();
     }
@@ -53,7 +62,10 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
 
   Future<void> _initBackground() async {
     final bg = widget.backgroundService;
-    if (!bg.isActive) return;
+    if (!bg.isActive) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     if (bg.type == CustomBackgroundType.video && bg.filePath != null) {
       await _initVideo(bg.filePath!);
@@ -62,17 +74,26 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
   }
 
   Future<void> _initVideo(String path) async {
+    final generation = ++_videoInitGeneration;
     try {
-      _videoController = VideoPlayerController.file(File(path));
-      await _videoController!.initialize();
-      await _videoController!.setLooping(true);
-      await _videoController!.setVolume(0.0);
-      await _videoController!.play();
+      final controller = VideoPlayerController.file(File(path));
+      _videoController = controller;
+      await controller.initialize();
+      if (generation != _videoInitGeneration) {
+        // A newer init was started, discard this result
+        controller.dispose();
+        return;
+      }
+      await controller.setLooping(true);
+      await controller.setVolume(0.0);
+      await controller.play();
       if (mounted) setState(() => _isVideoInitialized = true);
     } catch (_) {
-      _videoController?.dispose();
-      _videoController = null;
-      if (mounted) setState(() => _isVideoInitialized = false);
+      if (generation == _videoInitGeneration) {
+        _videoController?.dispose();
+        _videoController = null;
+        if (mounted) setState(() => _isVideoInitialized = false);
+      }
     }
   }
 
@@ -85,6 +106,7 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.backgroundService.removeListener(_onBackgroundChanged);
     _disposeVideo();
     super.dispose();
   }
@@ -126,6 +148,7 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
         child: Image.file(
           bg.file!,
           fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
           // Cap decoded bitmap size to avoid OOM on low-RAM devices with large photos.
           // 1080x1920 covers most phones while keeping memory ~8MB.
           cacheWidth: 1080,
@@ -139,8 +162,52 @@ class _CustomBackgroundWidgetState extends State<CustomBackgroundWidget>
   }
 
   Widget _buildDarkOverlay() {
-    return Container(
-      color: Colors.black.withValues(alpha: widget.overlayOpacity),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Base dark overlay
+        Container(
+          color: Colors.black.withValues(alpha: widget.overlayOpacity),
+        ),
+        // Top gradient (status bar area)
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Bottom gradient (navigation bar area)
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,6 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 
@@ -114,7 +116,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.light(primary: AppColors.primary),
+            colorScheme: ColorScheme.dark(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -133,7 +135,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.light(primary: AppColors.primary),
+            colorScheme: ColorScheme.dark(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -148,17 +150,87 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: const Text('Delete Task'),
-        content: Text('Delete "${_titleCtrl.text}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: AppColors.red)),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.error.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 36, color: AppColors.error),
+                  const SizedBox(height: 12),
+                  Text(
+                    AppLocalizations.of(context)!.deleteTaskTitle,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    AppLocalizations.of(context)!.deleteTaskConfirm(_titleCtrl.text),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: AppColors.textMuted.withValues(alpha: 0.3)),
+                            ),
+                          ),
+                          child: Text(AppLocalizations.of(context)!.cancel),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: TextButton.styleFrom(
+                            backgroundColor: AppColors.error.withValues(alpha: 0.15),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: AppColors.error)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
     if (confirm == true && _isEditing) {
@@ -331,7 +403,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       dateLabel = 'No date set';
     } else if (_dueDate!.year == now.year && _dueDate!.month == now.month && _dueDate!.day == now.day) {
       dateLabel = 'Today';
-    } else if (_dueDate!.year == now.year && _dueDate!.month == now.month && _dueDate!.day == now.day + 1) {
+    } else if (_dueDate!.isAtSameMomentAs(DateTime(now.year, now.month, now.day + 1))) {
       dateLabel = 'Tomorrow';
     } else {
       dateLabel = DateFormat('EEE, MMM d, yyyy').format(_dueDate!);
@@ -551,7 +623,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.light(primary: AppColors.purple),
+            colorScheme: ColorScheme.dark(primary: AppColors.purple),
           ),
           child: child!,
         );
@@ -615,9 +687,8 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 2),
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [

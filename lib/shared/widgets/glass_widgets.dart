@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'particle_effects.dart';
 
 // ===== GLASSMORPHISM CONTAINER =====
 class GlassContainer extends StatelessWidget {
@@ -16,7 +17,7 @@ class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
     required this.child,
-    this.blur = 20,
+    this.blur = 28,
     this.opacity = 0.15,
     this.tintColor,
     this.borderRadius,
@@ -42,6 +43,14 @@ class GlassContainer extends StatelessWidget {
                 color: AppColors.borderLight.withValues(alpha: 0.3),
                 width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: child,
           ),
@@ -204,6 +213,7 @@ class BounceCheck extends StatefulWidget {
 class _BounceCheckState extends State<BounceCheck> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnim;
+  OverlayEntry? _confettiEntry;
 
   @override
   void initState() {
@@ -224,11 +234,35 @@ class _BounceCheckState extends State<BounceCheck> with SingleTickerProviderStat
     if (widget.isChecked && !old.isChecked) {
       _controller.reset();
       _controller.forward();
+      _showConfetti();
     }
+  }
+
+  void _showConfetti() {
+    _confettiEntry?.remove();
+    final overlay = Overlay.of(context);
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final center = box.size.center(box.localToGlobal(Offset.zero));
+
+    _confettiEntry = OverlayEntry(
+      builder: (_) => ConfettiEffect(
+        origin: center,
+        particleCount: 18,
+        color: widget.color,
+        onComplete: () {
+          _confettiEntry?.remove();
+          _confettiEntry = null;
+        },
+      ),
+    );
+    overlay.insert(_confettiEntry!);
   }
 
   @override
   void dispose() {
+    _confettiEntry?.remove();
+    _confettiEntry = null;
     _controller.dispose();
     super.dispose();
   }

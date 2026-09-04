@@ -1,0 +1,105 @@
+--------- beginning of system
+09-04 07:40:01.631 E/Watchdog( 1473): !@Sync: 3374 heap(MB): 147 / 168 FD: 1514 Threads: 536 [2026-09-04 07:40:01.631]
+--------- beginning of main
+09-04 07:40:01.637 W/vendor.samsung.hardware.security.engmode-service(  685): Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: EngineeringModeService
+09-04 07:40:01.643 E/engmode_world(  998): Unknown token(00/00/00)
+09-04 07:40:01.643 E/engmode_aidl_service(  685): error to server(0xd0060012)
+09-04 07:40:01.669 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:02.170 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:02.671 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:03.172 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:03.187 W/LocalDisplayAdapter( 1473): !@display_state - 2768 : DOZE -> DOZE_SUSPEND (MAIN)
+09-04 07:40:03.194 W/LocalDisplayAdapter( 1473): !@display_state - 2768 : DOZE_SUSPEND (MAIN) took 2 ms
+09-04 07:40:03.674 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:04.175 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:04.676 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:05.178 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:05.679 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:06.180 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:06.682 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:07.183 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:07.685 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:07.901 W/ProcessStats( 1473): Tracking association SourceState{804fc9d com.samsung.android.calendar/10330 Top #212459} whose proc state 1 is better than process ProcessState{26ed4c3 com.sec.android.daemonapp:weather_content_provider/10222 pkg=com.sec.android.daemonapp} proc state 2 (0 skipped)
+09-04 07:40:07.927 E/BatteryDump( 1056): !@new_battery_dump : 4013,-115,3000,3150,64,288,289,289,0,0,319,289,0,Charging,NO_CHARGING,Normal,Good,USB,1,Normal,0,0,0,8339,0x0,0x10000,0x0,0,0,0,v0005,0,0/0-0-0-0,0,0,0,0,0x0000,0x0000,0x00000000,0,0,0,0,0,0,60,4022,6370,990,0,
+09-04 07:40:08.186 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:08.688 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:09.190 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:09.691 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:10.192 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:10.694 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:11.195 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:11.697 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:12.198 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:12.699 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:13.201 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:13.704 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:14.206 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:14.708 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:15.209 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:15.710 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:16.211 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:16.713 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:17.214 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:17.717 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:18.175 E/BatteryDump( 1056): !@new_battery_dump : 4012,-117,3000,3150,64,288,289,289,0,0,319,289,0,Charging,NO_CHARGING,Normal,Good,USB,1,Normal,0,0,0,8319,0x0,0x10000,0x0,0,0,0,v0005,0,0/0-0-0-0,0,0,0,0,0x0000,0x0000,0x00000000,0,0,0,0,0,0,60,4022,6370,990,0,
+09-04 07:40:18.219 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:18.720 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:19.222 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:19.724 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:20.225 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:20.726 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:21.227 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:21.728 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:22.229 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:22.732 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:23.234 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:23.736 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:24.237 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:24.740 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:25.241 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:25.743 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:26.244 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:26.551 W/DeviceStorageMonitorService( 1473): updateBroadcasts(/data) oldLevel:0, newLevel:0, seq:1
+09-04 07:40:26.553 W/DeviceStorageMonitorService( 1473): updateBroadcasts_filenode(/data) fn_oldLevel:0, fn_newLevel:0, seq:1
+09-04 07:40:26.745 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:27.246 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:27.747 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:28.247 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:28.417 E/BatteryDump( 1056): !@new_battery_dump : 4013,-132,3000,3150,64,289,289,289,0,0,319,289,0,Charging,NO_CHARGING,Normal,Good,USB,1,Normal,0,0,0,8319,0x0,0x10000,0x0,0,0,0,v0005,0,0/0-0-0-0,0,0,0,0,0x0000,0x0000,0x00000000,0,0,0,0,0,0,60,4022,6370,990,0,
+09-04 07:40:28.749 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:29.250 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:29.752 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:30.253 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:30.754 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:31.256 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:31.658 E/Watchdog( 1473): !@Sync: 3375 heap(MB): 148 / 168 FD: 1514 Threads: 536 [2026-09-04 07:40:31.657]
+09-04 07:40:31.664 W/vendor.samsung.hardware.security.engmode-service(  685): Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: EngineeringModeService
+09-04 07:40:31.670 E/engmode_world(  998): Unknown token(00/00/00)
+09-04 07:40:31.670 E/engmode_aidl_service(  685): error to server(0xd0060012)
+09-04 07:40:31.759 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:32.260 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:32.762 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:33.263 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:33.764 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:34.265 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:34.767 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:35.267 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:35.769 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:36.271 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:36.773 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:37.274 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:37.776 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:38.278 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:38.644 E/BatteryDump( 1056): !@new_battery_dump : 4012,-115,3000,3150,64,289,289,289,0,0,319,289,0,Charging,NO_CHARGING,Normal,Good,USB,1,Normal,0,0,0,8319,0x0,0x10000,0x0,0,0,0,v0005,0,0/0-0-0-0,0,0,0,0,0x0000,0x0000,0x00000000,0,0,0,0,0,0,60,4022,6370,990,0,
+09-04 07:40:38.779 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:39.280 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:39.781 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:40.282 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:40.785 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:41.287 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0
+09-04 07:40:41.552 W/LocalDisplayAdapter( 1473): !@display_state - 2769 : DOZE_SUSPEND -> DOZE (MAIN)
+09-04 07:40:41.553 W/DisplayPowerController[0]( 1473): Animating brightness: target=11(0.04), rate=0,000, rateAtHbm=0,000, reason=doze[11]
+09-04 07:40:41.556 W/LocalDisplayAdapter( 1473): !@display_state - 2769 : DOZE (MAIN) took 3 ms
+09-04 07:40:41.658 W/LocalDisplayAdapter( 1473): !@display_state - 2770 : DOZE -> DOZE_SUSPEND (MAIN)
+09-04 07:40:41.662 W/LocalDisplayAdapter( 1473): !@display_state - 2770 : DOZE_SUSPEND (MAIN) took 4 ms
+09-04 07:40:41.788 W/PackageConfigPersister( 1473): App-specific configuration not found for packageName: com.samsung.android.calendar and userId: 0

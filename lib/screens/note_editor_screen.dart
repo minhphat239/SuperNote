@@ -17,6 +17,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   bool _hasChanges = false;
+  bool _isSaving = false;
   final FocusNode _titleFocus = FocusNode();
   final FocusNode _contentFocus = FocusNode();
 
@@ -50,6 +51,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+    _isSaving = true;
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
@@ -88,7 +91,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-                        if (shouldPop && context.mounted) Navigator.pop(context, false);
+        if (shouldPop && context.mounted) Navigator.pop(context, false);
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -212,8 +215,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.04), width: 0.5)),
+                  color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 3),
                 ),
                 child: Row(
                   children: [

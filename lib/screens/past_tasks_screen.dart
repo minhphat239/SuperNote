@@ -42,18 +42,15 @@ class _PastTasksScreenState extends State<PastTasksScreen> with SingleTickerProv
   List<Task> _getFilteredTasks(_FilterStatus status) {
     final now = DateTime.now();
     final allTasks = widget.taskService.tasks;
-    final past = allTasks.where((t) {
-      if (t.dueDate == null) return false;
-      return t.dueDate!.isBefore(now);
-    }).toList();
 
     switch (status) {
       case _FilterStatus.completed:
-        return past.where((t) => t.status == TaskStatus.done).toList();
+        return allTasks.where((t) => t.status == TaskStatus.done).toList();
       case _FilterStatus.missed:
-        return past.where((t) => t.status != TaskStatus.done).toList();
+        final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        return allTasks.where((t) => t.status != TaskStatus.done && t.dueDate != null && t.dueDate!.isBefore(todayEnd)).toList();
       case _FilterStatus.pastEvents:
-        return past.where((t) => t.repeatRule != null).toList();
+        return allTasks.where((t) => t.repeatRule != null).toList();
     }
   }
 

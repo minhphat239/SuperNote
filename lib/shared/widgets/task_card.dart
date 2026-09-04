@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import 'glass_widgets.dart';
 
 class TaskCard extends StatelessWidget {
@@ -34,11 +35,21 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+          horizontal: AppSpacing.lg, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 2),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -49,11 +60,9 @@ class TaskCard extends StatelessWidget {
           splashColor: AppColors.splash,
           highlightColor: Colors.transparent,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                // Bounce check — 44x44 touch target
                 SizedBox(
                   width: 44,
                   height: 44,
@@ -67,8 +76,6 @@ class TaskCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-
-                // Title + subtitle
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,16 +105,13 @@ class TaskCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 11,
-                              color:
-                                  AppColors.textMuted.withValues(alpha: 0.7),
+                              color: AppColors.textMuted,
                               height: 1.3),
                         ),
                       ],
                     ],
                   ),
                 ),
-
-                // Note icon indicator
                 if (hasNote && !isDone)
                   Padding(
                     padding: const EdgeInsets.only(left: 6),
@@ -115,8 +119,11 @@ class TaskCard extends StatelessWidget {
                         size: 14,
                         color: AppColors.primary.withValues(alpha: 0.6)),
                   ),
-
-                // More menu
+                if (trailing != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: trailing,
+                  ),
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert_rounded,
                       size: 18,
@@ -124,28 +131,28 @@ class TaskCard extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppRadius.lg)),
-                  color: AppColors.surfaceLight,
+                  color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 3),
                   onSelected: (v) {
                     if (v == 'snooze') onSnooze?.call();
                     if (v == 'delete') onDelete?.call();
                   },
                   itemBuilder: (_) => [
                     if (!isDone)
-                    PopupMenuItem(
-                        value: 'snooze',
-                        child: Row(children: [
+                      PopupMenuItem(
+                          value: 'snooze',
+                          child: Row(children: [
                             Icon(Icons.snooze_rounded,
                                 size: 18, color: AppColors.orange),
-                            SizedBox(width: 10),
-                            Text('Snooze'),
+                            const SizedBox(width: 10),
+                            Text(AppLocalizations.of(context)!.snooze),
                           ])),
                     PopupMenuItem(
                         value: 'delete',
                         child: Row(children: [
                           Icon(Icons.delete_outline_rounded,
                               size: 18, color: AppColors.error),
-                          SizedBox(width: 10),
-                          Text('Delete',
+                          const SizedBox(width: 10),
+                          Text(AppLocalizations.of(context)!.delete,
                               style:
                                   TextStyle(color: AppColors.error)),
                         ])),

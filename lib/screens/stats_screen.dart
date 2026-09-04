@@ -45,7 +45,7 @@ class _StatsScreenState extends State<StatsScreen> {
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.surface,
+            backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
             surfaceTintColor: Colors.transparent,
             title: Text(AppLocalizations.of(context)!.statsTitle,
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.textPrimary)),
@@ -72,14 +72,14 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildLeverSegment() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Row(
@@ -135,7 +135,7 @@ class _StatsScreenState extends State<StatsScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
@@ -143,7 +143,7 @@ class _StatsScreenState extends State<StatsScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
           ),
           child: Column(
@@ -301,22 +301,22 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildCategoryBreakdown() {
     final l10n = AppLocalizations.of(context)!;
     final categories = [
-      (l10n.filterClass, AppColors.blue, _tasks.where((t) => t.category.name == 'class_').length),
-      (l10n.filterExam, AppColors.red, _tasks.where((t) => t.category.name == 'exam').length),
-      (l10n.filterAssignment, AppColors.orange, _tasks.where((t) => t.category.name == 'assignment').length),
-      (l10n.filterPersonal, AppColors.green, _tasks.where((t) => t.category.name == 'personal').length),
+      (l10n.filterClass, AppColors.blue, _tasks.where((t) => t.category == TaskCategory.class_).length),
+      (l10n.filterExam, AppColors.red, _tasks.where((t) => t.category == TaskCategory.exam).length),
+      (l10n.filterAssignment, AppColors.orange, _tasks.where((t) => t.category == TaskCategory.assignment).length),
+      (l10n.filterPersonal, AppColors.green, _tasks.where((t) => t.category == TaskCategory.personal).length),
     ];
     final total = _tasks.isEmpty ? 1 : _tasks.length;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Column(
@@ -378,11 +378,15 @@ class _StatsScreenState extends State<StatsScreen> {
               t.dueDate!.day == now.day) {
             counts[t.dueDate!.hour]++;
           }
-          if (t.dueTime != null &&
-              t.dueTime!.year == now.year &&
-              t.dueTime!.month == now.month &&
-              t.dueTime!.day == now.day) {
-            counts[t.dueTime!.hour]++;
+          if (t.dueTime != null) {
+            // dueTime uses dummy year 2000, only check hour
+            final taskHour = t.dueTime!.hour;
+            if (t.dueDate != null &&
+                t.dueDate!.year == now.year &&
+                t.dueDate!.month == now.month &&
+                t.dueDate!.day == now.day) {
+              counts[taskHour]++;
+            }
           }
         }
         final spots = <FlSpot>[];
@@ -424,8 +428,7 @@ class _StatsScreenState extends State<StatsScreen> {
       case StatLevel.day:
         return ['0h', '4h', '8h', '12h', '16h', '20h', '24h'];
       case StatLevel.week:
-        final l10n = AppLocalizations.of(context)!;
-        return [l10n.monday, l10n.tuesday, l10n.wednesday, l10n.thursday, l10n.friday, l10n.saturday, l10n.sunday];
+        return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
       case StatLevel.month:
         return List.generate(30, (i) => '${i + 1}');
     }

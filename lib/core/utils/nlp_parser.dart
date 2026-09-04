@@ -160,11 +160,18 @@ class NlpParser {
     if (dueDate == null) {
       final slashDate = RegExp(r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?').firstMatch(remaining);
       if (slashDate != null) {
-        final day = int.parse(slashDate.group(1)!);
-        final month = int.parse(slashDate.group(2)!);
+        final a = int.parse(slashDate.group(1)!);
+        final b = int.parse(slashDate.group(2)!);
         final year = slashDate.group(3) != null ? int.parse(slashDate.group(3)!) : now.year;
         try {
-          dueDate = DateTime(year < 100 ? 2000 + year : year, month, day);
+          // If first number > 12, assume MM/dd (US format), else dd/MM (Vietnamese)
+          if (a > 12) {
+            dueDate = DateTime(year < 100 ? 2000 + year : year, b, a);
+          } else if (b > 12) {
+            dueDate = DateTime(year < 100 ? 2000 + year : year, a, b);
+          } else {
+            dueDate = DateTime(year < 100 ? 2000 + year : year, b, a);
+          }
         } catch (_) {}
         remaining = remaining.replaceAll(slashDate.group(0)!, ' ');
       }

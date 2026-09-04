@@ -26,10 +26,8 @@ class _TaskStatsCardState extends State<TaskStatsCard> {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.1), width: 0.5),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -52,7 +50,7 @@ class _TaskStatsCardState extends State<TaskStatsCard> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted.withValues(alpha: 0.8),
+                      color: const Color(0xFFA0AAB2),
                     ),
                   ),
                   const Spacer(),
@@ -131,7 +129,7 @@ class _TaskStatsCardState extends State<TaskStatsCard> {
               _buildStatItem(
                   label: 'Tổng', count: total, icon: Icons.list_rounded),
               _buildStatItem(
-                  label: 'Chờ', count: total - classCount - examCount - assignmentCount - personalCount, icon: Icons.pending_actions_rounded),
+                  label: 'Chờ', count: allTasks.where((t) => !t.isDone && !t.isOverdue).length, icon: Icons.pending_actions_rounded),
               _buildStatItem(
                   label: 'Xong',
                   count: allTasks.where((t) => t.isDone).length,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 // ===== WEEKLY CALENDAR STRIP (72px) =====
 class WeeklyCalendarStrip extends StatefulWidget {
@@ -29,6 +30,15 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
     _weekDays = _getWeekDays(_selectedDate);
   }
 
+  @override
+  void didUpdateWidget(WeeklyCalendarStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedDate != oldWidget.selectedDate) {
+      _selectedDate = widget.selectedDate;
+      _weekDays = _getWeekDays(_selectedDate);
+    }
+  }
+
   List<DateTime> _getWeekDays(DateTime date) {
     final start = date.subtract(Duration(days: date.weekday - 1));
     return List.generate(
@@ -38,7 +48,8 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    final l10n = AppLocalizations.of(context)!;
+    final dayNames = [l10n.weekdayMon, l10n.weekdayTue, l10n.weekdayWed, l10n.weekdayThu, l10n.weekdayFri, l10n.weekdaySat, l10n.weekdaySun];
 
     return Container(
       height: 72,
@@ -53,6 +64,7 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
               day.month == _selectedDate.month &&
               day.day == _selectedDate.day;
           final taskCount = widget.taskCounts[day.day] ?? 0;
+          final isWeekend = i >= 5; // T7 (index 5) and CN (index 6)
 
           return Expanded(
             child: GestureDetector(
@@ -67,13 +79,7 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                   color: isSelected
                       ? AppColors.primary.withValues(alpha: 0.12)
                       : Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : Colors.white.withValues(alpha: 0.08),
-                    width: isSelected ? 1.5 : 0.5,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
@@ -94,7 +100,10 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
                             ? AppColors.primary
-                            : AppColors.textMuted.withValues(alpha: 0.6),
+                            : isWeekend
+                                ? const Color(0xFFFF8A8A).withValues(alpha: 0.7)
+                                : AppColors.textMuted.withValues(alpha: 0.6),
+                        letterSpacing: (Localizations.localeOf(context).languageCode == 'vi' && i == 6) ? 0.5 : 0,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -107,7 +116,9 @@ class _WeeklyCalendarStripState extends State<WeeklyCalendarStrip> {
                             ? AppColors.primary
                             : (isToday
                                 ? AppColors.primary
-                                : AppColors.textPrimary),
+                                : isWeekend
+                                    ? const Color(0xFFFF8A8A)
+                                    : AppColors.textPrimary),
                       ),
                     ),
                     const SizedBox(height: 2),

@@ -193,6 +193,49 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
+  // ==================== FORGOT PASSWORD ====================
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Vui lòng nhập email để đặt lại mật khẩu');
+      return;
+    }
+
+    if (!email.contains('@') || !email.contains('.')) {
+      setState(() => _error = 'Email không hợp lệ');
+      return;
+    }
+
+    final success = await widget.authService.sendPasswordResetEmail(email);
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.authPasswordResetSent,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      setState(() {
+        _error = widget.authService.errorMessage ?? 'Không thể gửi email. Vui lòng thử lại.';
+      });
+    }
+  }
+
   String _friendlyError(Object e, BuildContext context) {
     final msg = e.toString();
     if (msg.contains('user-not-found')) return AppLocalizations.of(context)!.authAccountNotFound;
@@ -337,9 +380,8 @@ class _AuthScreenState extends State<AuthScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,25 +496,62 @@ class _AuthScreenState extends State<AuthScreen>
 
           const SizedBox(height: 10),
 
-          // Toggle login/register link
-          Center(
-            child: GestureDetector(
-              onTap: () => setState(() {
-                _isLogin = !_isLogin;
-                _error = null;
-              }),
-              child: Text(
-                _isLogin
-                    ? AppLocalizations.of(context)!.authNoAccount
-                    : AppLocalizations.of(context)!.authHasAccount,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
+          // Toggle login/register link + Forgot password
+          if (_isLogin)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _isLogin = !_isLogin;
+                    _error = null;
+                  }),
+                  child: Text(
+                    AppLocalizations.of(context)!.authNoAccount,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Text(
+                  '  •  ',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted.withValues(alpha: 0.5),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _forgotPassword,
+                  child: Text(
+                    AppLocalizations.of(context)!.authForgotPassword,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Center(
+              child: GestureDetector(
+                onTap: () => setState(() {
+                  _isLogin = !_isLogin;
+                  _error = null;
+                }),
+                child: Text(
+                  AppLocalizations.of(context)!.authHasAccount,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

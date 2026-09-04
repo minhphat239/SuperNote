@@ -23,6 +23,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late TextEditingController _titleCtrl;
   late TextEditingController _noteCtrl;
   late bool _isDone;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -40,6 +41,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+    _isSaving = true;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty && _noteCtrl.text.trim().isEmpty) return;
 
@@ -55,26 +58,82 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (mounted) Navigator.pop(context, true);
   }
 
+  Future<void> _saveAndPop() async {
+    if (_isSaving) return;
+    _isSaving = true;
+    final title = _titleCtrl.text.trim();
+    if (title.isNotEmpty || _noteCtrl.text.trim().isNotEmpty) {
+      final newStatus = _isDone ? TaskStatus.done : TaskStatus.pending;
+      await widget.taskService.updateTask(
+        widget.task.id,
+        title: title.isNotEmpty ? title : 'Untitled',
+        noteContent: _noteCtrl.text.trim(),
+        status: newStatus,
+      );
+    }
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  Future<void> _showTimePicker() async {
+    final now = DateTime.now();
+    final initial = widget.task.dueTime != null
+        ? TimeOfDay(hour: widget.task.dueTime!.hour, minute: widget.task.dueTime!.minute)
+        : TimeOfDay(hour: now.hour, minute: now.minute);
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      final newDueTime = DateTime(2000, 1, 1, picked.hour, picked.minute);
+      await widget.taskService.updateTask(widget.task.id, dueTime: newDueTime);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _showDatePicker() async {
+    final initial = widget.task.dueDate ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      await widget.taskService.updateTask(widget.task.id, dueDate: picked);
+      if (mounted) setState(() {});
+    }
+  }
+
   void _toggleDone() => setState(() => _isDone = !_isDone);
 
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.xl),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.surface.withValues(alpha: 0.85),
+                color: AppColors.surface.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withValues(alpha: 0.08),
                   width: 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.error.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -187,7 +246,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        _save();
+        _saveAndPop();
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -236,11 +295,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   // ===== GLASS APP BAR =====
   Widget _buildGlassAppBar() {
+    final topPadding = MediaQuery.of(context).padding.top;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          height: 52,
+          height: 52 + topPadding,
+          padding: EdgeInsets.only(top: topPadding),
           decoration: BoxDecoration(
             color: AppColors.surface.withValues(alpha: 0.7),
             border: Border(
@@ -256,7 +317,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               // Back button
               _buildGlassIconBtn(
                 icon: Icons.arrow_back_rounded,
-                onTap: _save,
+                onTap: _saveAndPop,
               ),
               const Spacer(),
               // Done toggle
@@ -352,7 +413,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 1.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
@@ -434,7 +495,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 1.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
@@ -443,41 +504,42 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ),
           child: Row(
             children: [
-              // Time block
+              // Time block - tappable
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          '\u{1F552}',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          AppLocalizations.of(context)!.selectTime,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textMuted.withValues(alpha: 0.7),
+                child: GestureDetector(
+                  onTap: _showTimePicker,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 13, color: AppColors.textMuted),
+                          const SizedBox(width: 6),
+                          Text(
+                            AppLocalizations.of(context)!.selectTime,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted.withValues(alpha: 0.7),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      timeStr,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: hasTime
-                            ? AppColors.primary
-                            : AppColors.textMuted.withValues(alpha: 0.3),
-                        letterSpacing: 1,
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: hasTime
+                              ? AppColors.primary
+                              : AppColors.textMuted.withValues(alpha: 0.3),
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -488,43 +550,44 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 color: Colors.white.withValues(alpha: 0.08),
               ),
 
-              // Date block
+              // Date block - tappable
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '\u{1F4C5}',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            AppLocalizations.of(context)!.selectDate,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color:
-                                  AppColors.textMuted.withValues(alpha: 0.7),
+                child: GestureDetector(
+                  onTap: _showDatePicker,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.textMuted),
+                            const SizedBox(width: 6),
+                            Text(
+                              AppLocalizations.of(context)!.selectDate,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color:
+                                    AppColors.textMuted.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: hasDate
-                              ? AppColors.orange
-                              : AppColors.textMuted.withValues(alpha: 0.3),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Text(
+                          dateStr,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: hasDate
+                                ? AppColors.orange
+                                : AppColors.textMuted.withValues(alpha: 0.3),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -569,7 +632,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           constraints: const BoxConstraints(minHeight: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 1.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
@@ -635,7 +698,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 1.5),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
@@ -649,7 +712,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 children: [
                   Icon(Icons.attach_file_rounded, size: 16, color: AppColors.primaryLight),
                   const SizedBox(width: 8),
-                  Text('${files.length} tệp đính kèm',
+                  Text(AppLocalizations.of(context)!.attachmentCount(files.length),
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
                 ],
               ),
@@ -681,12 +744,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   // ===== BOTTOM ACTION TOOLBAR =====
   Widget _buildBottomToolbar() {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           padding: EdgeInsets.fromLTRB(
-              16, 10, 16, 10 + MediaQuery.of(context).viewInsets.bottom),
+              16, 10, 16, 10 + bottomPad),
           decoration: BoxDecoration(
             color: AppColors.surface.withValues(alpha: 0.7),
             border: Border(
@@ -716,7 +780,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(width: 10),
                 _buildToolbarBtn(
                   icon: Icons.attach_file_rounded,
-                  label: 'File',
+                  label: AppLocalizations.of(context)!.attachmentFile,
                   color: AppColors.primaryLight,
                   onTap: _showFileOption,
                   badge: widget.task.attachments.isNotEmpty ? widget.task.attachments.length : null,
@@ -737,7 +801,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
@@ -826,7 +890,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
@@ -904,7 +968,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
@@ -926,7 +990,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   children: [
                     Icon(Icons.attach_file_rounded, size: 18, color: AppColors.primaryLight),
                     const SizedBox(width: 8),
-                    const Text('Đính kèm tệp',
+                    Text(AppLocalizations.of(context)!.attachFile,
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -959,7 +1023,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       children: [
                         Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
                         const SizedBox(width: 8),
-                        Text('Chọn tệp từ thiết bị',
+                        Text(AppLocalizations.of(context)!.chooseFromDevice,
                             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
                       ],
                     ),
@@ -967,7 +1031,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 if (files.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  Text('${files.length} tệp đã đính kèm',
+                  Text(AppLocalizations.of(context)!.filesAttached(files.length),
                       style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   const SizedBox(height: 8),
                   ...files.asMap().entries.map((entry) {

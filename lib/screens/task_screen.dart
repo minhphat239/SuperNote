@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
@@ -7,6 +8,7 @@ import '../core/utils/nlp_dual_stage.dart';
 import '../models/task.dart';
 import '../services/gemini_service.dart';
 import '../services/task_service.dart';
+import '../shared/widgets/ai_chat_panel.dart';
 import '../shared/widgets/nlp_input_bar.dart';
 import '../shared/widgets/task_card.dart';
 import '../shared/widgets/progress_widgets.dart';
@@ -24,9 +26,9 @@ class TaskScreen extends StatefulWidget {
 
 class _TaskScreenState extends State<TaskScreen> {
   TaskCategory? _selectedCategory;
+  bool _showOverdueOnly = false;
   String _searchQuery = '';
   bool _showSearch = false;
-  bool _showCompleted = false;
   DateTime _selectedDate = DateTime.now();
   StreamSubscription<List<Task>>? _taskSubscription;
 
@@ -106,8 +108,9 @@ class _TaskScreenState extends State<TaskScreen> {
     setState(() {});
 
     if (!wasDone) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(SnackBar(
         content: Row(children: [
           Icon(Icons.check_circle_rounded, color: AppColors.onAccent, size: 18),
           const SizedBox(width: 8),
@@ -120,13 +123,17 @@ class _TaskScreenState extends State<TaskScreen> {
             textColor: AppColors.primaryLight,
             onPressed: () async {
               await widget.taskService.toggleTask(task.id);
-              setState(() {});
+              if (mounted) setState(() {});
             }),
         behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md)),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 3),
       ));
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) messenger.hideCurrentSnackBar();
+      });
     }
   }
 
@@ -143,21 +150,102 @@ class _TaskScreenState extends State<TaskScreen> {
   void _deleteTask(Task task) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.xl)),
-        backgroundColor: AppColors.surface,
-        title: Text(AppLocalizations.of(context)!.deleteTaskTitle),
-        content: Text(AppLocalizations.of(context)!.deleteTaskConfirm(task.title)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(AppLocalizations.of(context)!.cancel)),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(AppLocalizations.of(context)!.delete,
-                  style: TextStyle(color: AppColors.error))),
-        ],
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.error.withValues(alpha: 0.15),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.delete_outline_rounded,
+                      size: 36, color: AppColors.error),
+                  const SizedBox(height: 12),
+                  Text(
+                    AppLocalizations.of(context)!.deleteTaskTitle,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    AppLocalizations.of(context)!.deleteTaskConfirm(task.title),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: AppColors.textMuted.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                          child: Text(AppLocalizations.of(context)!.cancel),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: TextButton.styleFrom(
+                            backgroundColor: AppColors.error.withValues(alpha: 0.15),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            AppLocalizations.of(context)!.delete,
+                            style: TextStyle(color: AppColors.error),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
     if (confirm == true) {
@@ -169,33 +257,50 @@ class _TaskScreenState extends State<TaskScreen> {
   void _snoozeTask(Task task) async {
     final option = await showModalBottomSheet<int>(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (_) => SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(top: 12),
-            decoration: BoxDecoration(
-                color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-        Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text('${AppLocalizations.of(context)!.snoozed}:',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-        ListTile(
-            leading: Icon(Icons.timer_rounded, color: AppColors.primary),
-            title: const Text('10 phút'),
-            onTap: () => Navigator.pop(context, 10)),
-        ListTile(
-            leading: Icon(Icons.timer_rounded, color: AppColors.orange),
-            title: const Text('1 giờ'),
-            onTap: () => Navigator.pop(context, 60)),
-        ListTile(
-            leading: Icon(Icons.calendar_today_rounded, color: AppColors.green),
-            title: Text(AppLocalizations.of(context)!.tomorrow),
-            onTap: () => Navigator.pop(context, 1440)),
-        const SizedBox(height: 8),
-      ])),
+      builder: (_) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: SafeArea(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.9),
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
+                ),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(top: 12),
+                    decoration: BoxDecoration(
+                        color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+                Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('${AppLocalizations.of(context)!.snoozed}:',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+                ListTile(
+                    leading: Icon(Icons.timer_rounded, color: AppColors.primary),
+                    title: const Text('10 phút'),
+                    onTap: () => Navigator.pop(context, 10)),
+                ListTile(
+                    leading: Icon(Icons.timer_rounded, color: AppColors.orange),
+                    title: const Text('1 giờ'),
+                    onTap: () => Navigator.pop(context, 60)),
+                ListTile(
+                    leading: Icon(Icons.calendar_today_rounded, color: AppColors.green),
+                    title: Text(AppLocalizations.of(context)!.tomorrow),
+                    onTap: () => Navigator.pop(context, 1440)),
+                const SizedBox(height: 8),
+              ]),
+            ),
+          ),
+        ),
+      ),
     );
     if (option != null) {
       await widget.taskService.snoozeTask(task.id, Duration(minutes: option));
@@ -206,18 +311,20 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     final grouped = widget.taskService.getTasksGroupedByDate();
-    var filtered = _selectedCategory != null
-        ? grouped.map((k, v) => MapEntry(
-            k, v.where((t) => t.category == _selectedCategory).toList()))
-        : grouped;
+    var filtered = grouped;
+    if (_showOverdueOnly) {
+      filtered = grouped.map((k, v) => MapEntry(
+          k, k == 'Overdue' ? v : []));
+    } else if (_selectedCategory != null) {
+      filtered = grouped.map((k, v) => MapEntry(
+          k, v.where((t) => t.category == _selectedCategory).toList()));
+    }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       filtered = filtered.map((k, v) => MapEntry(
           k, v.where((t) => t.title.toLowerCase().contains(q)).toList()));
     }
     final hasAny = filtered.values.any((l) => l.isNotEmpty);
-    final completedTasks = widget.taskService.completedTasks;
-    final totalDone = completedTasks.length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -230,7 +337,7 @@ class _TaskScreenState extends State<TaskScreen> {
             // App Bar with integrated stats subtitle
             SliverAppBar(
               pinned: true,
-              backgroundColor: AppColors.surface,
+              backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
               surfaceTintColor: Colors.transparent,
               toolbarHeight: 56,
               title: _showSearch
@@ -248,18 +355,18 @@ class _TaskScreenState extends State<TaskScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Tasks',
+                        Text(AppLocalizations.of(context)!.tasksTitle,
                             style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 20,
                                 color: AppColors.textPrimary)),
                         const SizedBox(height: 2),
                         Text(
-                          'Tổng ${widget.taskService.tasks.length} · Đang chờ ${widget.taskService.pendingTasks.length} · Hoàn thành $totalDone',
-                          style: TextStyle(
+                          'Tổng ${widget.taskService.tasks.length} · Đang chờ ${widget.taskService.pendingTasks.length}',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
-                            color: AppColors.textMuted.withValues(alpha: 0.7),
+                            color: Color(0xFFA0AAB2),
                           ),
                         ),
                       ],
@@ -281,13 +388,13 @@ class _TaskScreenState extends State<TaskScreen> {
                     if (!_showSearch) _searchQuery = '';
                   }),
                 ),
-                if (_selectedCategory != null)
+                if (_selectedCategory != null || _showOverdueOnly)
                   IconButton(
                       icon: Icon(Icons.filter_alt_off_rounded, size: 20, color: AppColors.primary),
-                      onPressed: () => setState(() => _selectedCategory = null)),
+                      onPressed: () => setState(() { _selectedCategory = null; _showOverdueOnly = false; })),
                 IconButton(
                   icon: Icon(Icons.filter_list_rounded, size: 22,
-                      color: _selectedCategory != null ? AppColors.primary : AppColors.textSecondary),
+                      color: (_selectedCategory != null || _showOverdueOnly) ? AppColors.primary : AppColors.textSecondary),
                   onPressed: _showCategoryFilter,
                 ),
                 const SizedBox(width: 4),
@@ -322,9 +429,9 @@ class _TaskScreenState extends State<TaskScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.only(bottom: 20),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (ctx, i) => _buildGroupedSection(grouped, i),
-                      childCount: _countGroups(grouped),
+                      delegate: SliverChildBuilderDelegate(
+                      (ctx, i) => _buildGroupedSection(filtered, i),
+                      childCount: _countGroups(filtered),
                     ),
                   ),
                 ),
@@ -343,47 +450,6 @@ class _TaskScreenState extends State<TaskScreen> {
                   ),
                 ),
               ),
-
-            // Completed Section
-            if (!_showSearch && completedTasks.isNotEmpty && _searchQuery.isEmpty) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _showCompleted = !_showCompleted),
-                    child: Row(children: [
-                      Icon(_showCompleted ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
-                          size: 18, color: AppColors.textMuted.withValues(alpha: 0.5)),
-                      Icon(Icons.check_circle_outline_rounded, size: 14,
-                          color: AppColors.success.withValues(alpha: 0.6)),
-                      const SizedBox(width: 6),
-                      Text('Đã hoàn thành (${completedTasks.length})',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                              color: AppColors.textMuted.withValues(alpha: 0.6))),
-                    ]),
-                  ),
-                ),
-              ),
-              if (_showCompleted)
-                SliverPadding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (ctx, i) => TaskCard(
-                        title: completedTasks[i].title,
-                        subtitle: _formatSubtitle(completedTasks[i]),
-                        categoryColor: completedTasks[i].category.color,
-                        isDone: true,
-                        hasNote: completedTasks[i].hasNote,
-                        onTap: () => _openTaskDetail(completedTasks[i]),
-                        onToggle: () => _toggleTask(completedTasks[i]),
-                        onDelete: () => _deleteTask(completedTasks[i]),
-                      ),
-                      childCount: completedTasks.length,
-                    ),
-                  ),
-                ),
-            ],
           ],
         ),
       ),
@@ -411,15 +477,20 @@ class _TaskScreenState extends State<TaskScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _buildFilterPill(label: AppLocalizations.of(context)!.filterAll, icon: Icons.all_inclusive_rounded,
-              color: AppColors.primary, selected: _selectedCategory == null,
-              onTap: () => setState(() => _selectedCategory = null)),
-          const SizedBox(width: 5),
+              color: AppColors.primary, selected: !_showOverdueOnly && _selectedCategory == null,
+              onTap: () => setState(() { _showOverdueOnly = false; _selectedCategory = null; })),
+          const SizedBox(width: 8),
+          _buildFilterPill(label: AppLocalizations.of(context)!.overdue, icon: Icons.warning_rounded,
+              color: AppColors.error, selected: _showOverdueOnly,
+              onTap: () => setState(() { _showOverdueOnly = true; _selectedCategory = null; }),
+              count: widget.taskService.pendingTasks.where((t) => t.isOverdue).length),
+          const SizedBox(width: 8),
           ...TaskCategory.values.map((cat) => Padding(
-                padding: const EdgeInsets.only(right: 5),
+                padding: const EdgeInsets.only(right: 8),
                 child: _buildFilterPill(
                   label: _getCategoryLabel(cat), icon: _getCategoryIcon(cat),
-                  color: cat.color, selected: _selectedCategory == cat,
-                  onTap: () => setState(() => _selectedCategory = cat),
+                  color: cat.color, selected: !_showOverdueOnly && _selectedCategory == cat,
+                  onTap: () => setState(() { _showOverdueOnly = false; _selectedCategory = cat; }),
                 ),
               )),
         ],
@@ -429,29 +500,29 @@ class _TaskScreenState extends State<TaskScreen> {
 
   Widget _buildFilterPill(
       {required String label, required IconData icon, required Color color,
-       required bool selected, required VoidCallback onTap}) {
+       required bool selected, required VoidCallback onTap, int? count}) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: selected
-              ? color.withValues(alpha: 0.18)
-              : Colors.white.withValues(alpha: 0.04),
+              ? color.withValues(alpha: 0.20)
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
-                ? color
+                ? color.withValues(alpha: 0.4)
                 : Colors.white.withValues(alpha: 0.1),
-            width: selected ? 1.5 : 1,
+            width: 0.5,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    spreadRadius: 1,
+                    color: color.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    spreadRadius: 0,
                   ),
                 ]
               : null,
@@ -459,13 +530,25 @@ class _TaskScreenState extends State<TaskScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12,
-                color: selected ? color : AppColors.textMuted.withValues(alpha: 0.5)),
-            const SizedBox(width: 3),
+            Icon(icon, size: 13,
+                color: selected ? color : AppColors.textMuted.withValues(alpha: 0.6)),
+            const SizedBox(width: 4),
             Text(label, style: TextStyle(
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
                 color: selected ? color : AppColors.textSecondary)),
+            if (count != null && count > 0) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: selected ? 0.25 : 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('$count', style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+              ),
+            ],
           ],
         ),
       ),
@@ -492,8 +575,11 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   void _showCategoryFilter() {
+    final overdueCount = widget.taskService.pendingTasks.where((t) => t.isOverdue).length;
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (_) => SafeArea(
@@ -504,15 +590,27 @@ class _TaskScreenState extends State<TaskScreen> {
             padding: EdgeInsets.all(16),
             child: Text('Lọc theo danh mục',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
-        RadioGroup<TaskCategory?>(
-            groupValue: _selectedCategory,
-            onChanged: (v) { Navigator.pop(context); setState(() => _selectedCategory = null); },
-            child: RadioListTile<TaskCategory?>(
-                value: null, title: const Text('Tất cả danh mục'), activeColor: AppColors.primary)),
+        RadioListTile<bool>(
+            groupValue: _showOverdueOnly,
+            value: false,
+            onChanged: (v) { Navigator.pop(context); setState(() { _showOverdueOnly = false; _selectedCategory = null; }); },
+            title: const Text('Tất cả danh mục'),
+            activeColor: AppColors.primary),
+        RadioListTile<bool>(
+            groupValue: _showOverdueOnly,
+            value: true,
+            onChanged: (v) { Navigator.pop(context); setState(() { _showOverdueOnly = true; _selectedCategory = null; }); },
+            title: Row(children: [
+              Container(width: 10, height: 10,
+                  decoration: BoxDecoration(color: AppColors.error, shape: BoxShape.circle)),
+              const SizedBox(width: 10),
+              Text('Quá hạn ($overdueCount)')
+            ]),
+            activeColor: AppColors.error),
         ...TaskCategory.values.map((cat) =>
             RadioGroup<TaskCategory?>(
               groupValue: _selectedCategory,
-              onChanged: (v) { Navigator.pop(context); setState(() => _selectedCategory = cat); },
+              onChanged: (v) { Navigator.pop(context); setState(() { _showOverdueOnly = false; _selectedCategory = cat; }); },
               child: RadioListTile<TaskCategory?>(
                 value: cat,
                 title: Row(children: [
@@ -591,12 +689,30 @@ class _TaskScreenState extends State<TaskScreen> {
       cursor++;
       for (final task in tasks) {
         if (flatIndex == cursor) {
-          return TaskCard(
-            title: task.title, subtitle: _formatSubtitle(task),
-            categoryColor: task.category.color, isDone: task.isDone,
-            isOverdue: task.isOverdue, hasNote: task.hasNote,
-            onTap: () => _openTaskDetail(task), onToggle: () => _toggleTask(task),
-            onDelete: () => _deleteTask(task), onSnooze: () => _snoozeTask(task),
+          return _SwipeToDelete(
+            key: ValueKey(task.id),
+            onDelete: () => _deleteTask(task),
+            child: TaskCard(
+              title: task.title, subtitle: _formatSubtitle(task),
+              categoryColor: task.category.color, isDone: task.isDone,
+              isOverdue: task.isOverdue, hasNote: task.hasNote,
+              onTap: () => _openTaskDetail(task), onToggle: () => _toggleTask(task),
+              onDelete: () => _deleteTask(task), onSnooze: () => _snoozeTask(task),
+              trailing: task.isOverdue
+                  ? GestureDetector(
+                      onTap: () => _deleteTask(task),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.delete_outline_rounded,
+                            size: 16, color: AppColors.error),
+                      ),
+                    )
+                  : null,
+            ),
           );
         }
         cursor++;
@@ -613,7 +729,7 @@ class _TaskScreenState extends State<TaskScreen> {
       String dateStr;
       if (d.year == now.year && d.month == now.month && d.day == now.day) {
         dateStr = AppLocalizations.of(context)!.today;
-      } else if (d.year == now.year && d.month == now.month && d.day == now.day + 1) {
+      } else if (d.isAtSameMomentAs(DateTime(now.year, now.month, now.day + 1))) {
         dateStr = AppLocalizations.of(context)!.tomorrow;
       } else {
         dateStr = DateFormat('dd/MM').format(d);
@@ -646,27 +762,96 @@ class _TaskScreenState extends State<TaskScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Soft gradient orb instead of tick icon
             Container(
-              width: 64, height: 64,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.12),
+                    AppColors.primary.withValues(alpha: 0.0),
+                  ],
+                ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.task_alt_rounded, size: 32,
-                  color: AppColors.primary.withValues(alpha: 0.4)),
+              child: Icon(
+                Icons.auto_awesome_rounded,
+                size: 32,
+                color: AppColors.primary.withValues(alpha: 0.35),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(quote, textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13,
-                    color: AppColors.textMuted.withValues(alpha: 0.6),
+                style: TextStyle(fontSize: 14,
+                    color: AppColors.textSecondary,
                     fontStyle: FontStyle.italic, height: 1.5)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(AppLocalizations.of(context)!.emptyHint,
-                style: TextStyle(fontSize: 11,
-                    color: AppColors.textMuted.withValues(alpha: 0.35))),
+                style: const TextStyle(fontSize: 12,
+                    color: Color(0xFFA0AAB2))),
+            const SizedBox(height: 24),
+            if (widget.geminiService != null)
+              GestureDetector(
+                onTap: () => AiChatPanel.show(context, widget.geminiService!, widget.taskService),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text('Thêm task ngay', style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SwipeToDelete extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onDelete;
+
+  const _SwipeToDelete({super.key, required this.child, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: key!,
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+            SizedBox(height: 2),
+            Text('Xóa', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+      child: child,
     );
   }
 }

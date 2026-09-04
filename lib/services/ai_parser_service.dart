@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
@@ -34,7 +35,7 @@ class AiParsedTask {
 
   Task toTask() {
     return Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: '${DateTime.now().millisecondsSinceEpoch}_${Random.secure().nextInt(0xFFFFFFFF).toRadixString(16)}',
       title: title,
       description: description ?? '',
       dueDate: dueDate,
@@ -90,7 +91,7 @@ class AiParserService {
       try {
         final result = await _parseWithGemini(input)
             .timeout(
-              const Duration(seconds: 5),
+              const Duration(seconds: 15),
               onTimeout: () => throw Exception('AI timeout — dùng parser nội bộ'),
             );
         if (result.success) return result;

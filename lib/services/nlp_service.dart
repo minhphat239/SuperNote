@@ -134,7 +134,7 @@ class NlpService {
         lower.contains('bai tap') || lower.contains('bài tập') ||
         lower.contains('submit') || lower.contains('nộp') ||
         lower.contains('deadline') || lower.contains('han nop') ||
-        lower.contains('han nộp') || lower.contains('hạn nộp')) {
+        lower.contains('hạn nộp')) {
       return TaskCategory.assignment;
     }
     if (lower.contains('class') || lower.contains('lecture') ||
@@ -163,7 +163,7 @@ class NlpService {
       case TaskCategory.exam:
         return ['exam', 'thi', 'test', 'midterm', 'final', 'quiz', 'kiem tra', 'bai thi', 'bài thi'];
       case TaskCategory.assignment:
-        return ['assignment', 'homework', 'bai tap', 'bài tập', 'submit', 'nộp', 'deadline', 'han nop', 'han nộp', 'hạn nộp'];
+        return ['assignment', 'homework', 'bai tap', 'bài tập', 'submit', 'nộp', 'deadline', 'han nop', 'hạn nộp'];
       case TaskCategory.class_:
         return ['class', 'lecture', 'lab', 'hoc', 'học', 'buoi', 'buổi', 'mon', 'môn'];
       case TaskCategory.personal:
@@ -327,7 +327,9 @@ class NlpService {
       'sunday': 7, 'sun': 7, 'chu nhat': 7, 'chủ nhật': 7, 'chủ nhat': 7,
     };
 
-    for (final entry in dayMap.entries) {
+    final sortedEntries = dayMap.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    for (final entry in sortedEntries) {
       if (lower.contains(entry.key)) {
         if (!days.contains(entry.value)) days.add(entry.value);
       }
@@ -351,14 +353,17 @@ class NlpService {
     final lower = text.toLowerCase();
 
     // Relative dates
-    if (lower.contains('tomorrow') || lower.contains('ngày mai') || lower.contains('mai ')) {
+    if (lower.contains('tomorrow') || lower.contains('ngày mai') || RegExp(r'\bmai\b').hasMatch(lower)) {
       return DateTime(now.year, now.month, now.day + 1);
     }
     if (lower.contains('today') || lower.contains('hôm nay')) {
       return DateTime(now.year, now.month, now.day);
     }
     if (lower.contains('next week') || lower.contains('tuần sau') || lower.contains('tuan sau')) {
-      return now.add(const Duration(days: 7));
+      // Calculate next Monday from now
+      final daysUntilMonday = (8 - now.weekday) % 7;
+      final nextMonday = now.add(Duration(days: daysUntilMonday == 0 ? 7 : daysUntilMonday));
+      return DateTime(nextMonday.year, nextMonday.month, nextMonday.day);
     }
 
     // "next Monday", "this Friday", "Monday", "Friday"
@@ -411,9 +416,17 @@ class NlpService {
             final day = int.parse(match.group(2)!);
             return DateTime(now.year, month, day);
           } else {
-            final day = int.parse(match.group(1)!);
-            final month = int.parse(match.group(2)!);
+            final g1 = int.parse(match.group(1)!);
+            final g2 = int.parse(match.group(2)!);
             final year = match.group(3) != null ? int.parse(match.group(3)!) : now.year;
+            int day, month;
+            if (g1 > 12 && g2 <= 12) {
+              day = g1; month = g2; // dd/MM
+            } else if (g2 > 12 && g1 <= 12) {
+              day = g2; month = g1; // MM/dd
+            } else {
+              day = g1; month = g2; // default dd/MM
+            }
             return DateTime(year, month, day);
           }
         } catch (_) {}
@@ -434,12 +447,18 @@ class NlpService {
       'saturday': 6, 'sat': 6, 'thứ 7': 6, 'thu 7': 6,
       'sunday': 7, 'sun': 7, 'chu nhat': 7, 'chủ nhật': 7, 'chủ nhat': 7,
     };
-    return dayMap[lower];
+    // Sort by length descending so 'thu 2' matches before 'thu'
+    final sortedEntries = dayMap.entries.toList()
+      ..sort((a, b) => b.key.length.compareTo(a.key.length));
+    for (final entry in sortedEntries) {
+      if (lower == entry.key) return entry.value;
+    }
+    return null;
   }
 
   static bool _isPastWeekday(DateTime now, int targetWeekday) {
     final currentWeekday = now.weekday; // 1=Mon, 7=Sun
-    return targetWeekday <= currentWeekday;
+    return targetWeekday < currentWeekday;
   }
 
   static DateTime _getNextWeekday(DateTime now, int targetWeekday, bool isNext) {
@@ -463,7 +482,7 @@ class NlpService {
   static String _removeDueDateText(String text) {
     return text
         .replaceAll(RegExp(r',?\s*(tomorrow|today|next week)', caseSensitive: false), '')
-        .replaceAll(RegExp(r',?\s*(ngày mai|mai|hôm nay|tuần sau|tuan sau)', caseSensitive: false), '')
+        .replaceAll(RegExp(r',?\s*(ngày mai|\bmai\b|hôm nay|tuần sau|tuan sau)', caseSensitive: false), '')
         .replaceAll(RegExp(r',?\s*in\s+\d+\s*days?', caseSensitive: false), '')
         .replaceAll(RegExp(r',?\s*\d+\s*ngày\s*(nữa|sau)', caseSensitive: false), '')
         .replaceAll(RegExp(r',?\s*\d+\s*tuần\s*(sau|nữa)', caseSensitive: false), '')

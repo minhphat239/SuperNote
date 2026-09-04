@@ -6,10 +6,13 @@ import '../core/theme/app_theme.dart';
 
 class ThemeService extends ChangeNotifier {
   static const String _key = 'app_theme_mode';
-  GlassTheme _current = GlassTheme.cyberpunk;
+  static const String _keyDetailedBg = 'detailed_background';
+  GlassTheme _current = GlassTheme.city;
+  bool _detailedBackground = true;
   final _themeStreamController = StreamController<GlassTheme>.broadcast();
 
   GlassTheme get current => _current;
+  bool get detailedBackground => _detailedBackground;
   Stream<GlassTheme> get themeChanges => _themeStreamController.stream;
 
   Future<void> init() async {
@@ -18,7 +21,7 @@ class ThemeService extends ChangeNotifier {
     if (saved != null) {
       _current = GlassTheme.getById(saved);
     }
-    // Sync AppColors with current theme
+    _detailedBackground = prefs.getBool(_keyDetailedBg) ?? true;
     AppColors.setTheme(_current);
     _themeStreamController.add(_current);
     notifyListeners();
@@ -29,13 +32,19 @@ class ThemeService extends ChangeNotifier {
     if (theme.id == _current.id) return;
 
     _current = theme;
-    // Sync AppColors with new theme — all widgets using AppColors will rebuild
     AppColors.setTheme(_current);
     _themeStreamController.add(_current);
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, themeId);
+  }
+
+  Future<void> toggleDetailedBackground(bool enabled) async {
+    _detailedBackground = enabled;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyDetailedBg, enabled);
   }
 
   @override

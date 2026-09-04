@@ -50,13 +50,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Stack(
           children: [
             CustomScrollView(
           slivers: [
             SliverAppBar(
               pinned: true,
-              backgroundColor: AppColors.surface,
+              backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
               surfaceTintColor: Colors.transparent,
               title: Text(AppLocalizations.of(context)!.calendarTitle,
                   style: TextStyle(
@@ -134,7 +135,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
             // FAB
             Positioned(
-              bottom: 80,
+              bottom: 80 + MediaQuery.of(context).padding.bottom,
               right: 16,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -183,10 +184,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 1,
-            ),
           ),
           child: Column(
             children: [
@@ -225,7 +222,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               // Weekday headers
               Row(
-                children: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+                children: [
+                  AppLocalizations.of(context)!.weekdayMon,
+                  AppLocalizations.of(context)!.weekdayTue,
+                  AppLocalizations.of(context)!.weekdayWed,
+                  AppLocalizations.of(context)!.weekdayThu,
+                  AppLocalizations.of(context)!.weekdayFri,
+                  AppLocalizations.of(context)!.weekdaySat,
+                  AppLocalizations.of(context)!.weekdaySun,
+                ]
                     .map((d) => Expanded(
                           child: Center(
                             child: Text(d,
@@ -255,8 +260,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   final date = DateTime(year, month, day);
                   final isToday = _isSameDay(date, now);
                   final isSelected = _isSameDay(date, _selectedDay);
+                  final isWeekend = date.weekday == 6 || date.weekday == 7;
                   final tasksForDay = _getTasksForDay(date);
                   final hasTasks = tasksForDay.isNotEmpty;
+
+                  final weekendColor = Color(0xFFFF6B8A);
 
                   return GestureDetector(
                     onTap: () => setState(() => _selectedDay = date),
@@ -265,7 +273,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary.withValues(alpha: 0.15)
-                            : Colors.transparent,
+                            : isWeekend
+                                ? weekendColor.withValues(alpha: 0.06)
+                                : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppRadius.sm),
                         border: isSelected
                             ? Border.all(
@@ -310,7 +320,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   ? AppColors.primary
                                   : isToday
                                       ? AppColors.primary
-                                      : AppColors.textPrimary,
+                                      : isWeekend
+                                          ? weekendColor
+                                          : AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 1),
@@ -365,11 +377,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   );
                 },
               ),
-            ],
-          ),
-        ),
+        ],
       ),
-    );
+    ),
+  ),
+  );
   }
 
   // ===== TASK SECTION =====
@@ -547,9 +559,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
         children: [
@@ -677,13 +688,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.only(bottom: 5),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 0.5),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border, width: 0.5),
       ),
       child: Row(
-        children: [
-          // Time column
+            children: [
+              // Time column
           if (task.dueTime != null)
             Container(
               width: 44,
@@ -876,21 +886,18 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: Colors.transparent,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                width: 1,
-              ),
+              color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -915,7 +922,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            AppLocalizations.of(context)!.addNewTask,
+                            l10n?.addNewTask ?? 'Thêm task mới',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -959,7 +966,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                       color: AppColors.textPrimary,
                     ),
                     decoration: InputDecoration(
-                      hintText: AppLocalizations.of(context)!.taskTitleHint,
+                      hintText: l10n?.taskTitleHint ?? 'Nhập tên task...',
                       hintStyle: TextStyle(
                         color: AppColors.textMuted.withValues(alpha: 0.4),
                         fontSize: 16,
@@ -986,7 +993,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                       height: 1.5,
                     ),
                     decoration: InputDecoration(
-                      hintText: AppLocalizations.of(context)!.notesOptional,
+                      hintText: l10n?.notesOptional ?? 'Ghi chú (tùy chọn)',
                       hintStyle: TextStyle(
                         color: AppColors.textMuted.withValues(alpha: 0.3),
                         fontSize: 14,
@@ -1024,7 +1031,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                                 Text(
                                   _dueTime != null
                                       ? DateFormat('HH:mm').format(_dueTime!)
-                                       : AppLocalizations.of(context)!.setTime,
+                                       : (l10n?.setTime ?? 'Chọn giờ'),
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
@@ -1089,7 +1096,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                       ),
                       child: Center(
                         child: Text(
-                          AppLocalizations.of(context)!.saveTask,
+                          l10n?.saveTask ?? 'Lưu task',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -1129,12 +1136,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface.withValues(alpha: 0.9),
+              color: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 5),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
-                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

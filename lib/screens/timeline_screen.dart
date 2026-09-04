@@ -118,9 +118,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
           // ===== SLIVER APP BAR =====
           SliverAppBar(
             pinned: true,
-            backgroundColor: AppColors.surface,
+            backgroundColor: AppColors.glassTint.withValues(alpha: AppColors.glassOpacity * 4),
             surfaceTintColor: Colors.transparent,
-            title: const Text('Timeline',
+            title: Text(AppLocalizations.of(context)!.timelineTitle,
                 style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 20,
@@ -161,10 +161,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
       padding: const EdgeInsets.all(14),
       blur: 12,
       opacity: 0.1,
-      border: Border.all(
-        color: Colors.white.withValues(alpha: 0.12),
-        width: 1,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -224,9 +220,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
               const SizedBox(width: 6),
               Text(
                 '$done/$total Task',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: AppColors.textMuted.withValues(alpha: 0.7),
+                  color: Color(0xFFA0AAB2),
                 ),
               ),
               const Spacer(),
@@ -336,19 +332,15 @@ class _TimelineScreenState extends State<TimelineScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.15)
-              : AppColors.surfaceLight,
+              ? AppColors.primary.withValues(alpha: 0.20)
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppRadius.full),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-            width: 1,
-          ),
         ),
         child: Text(
           label,
           style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: isSelected ? AppColors.primary : AppColors.textMuted),
         ),
       ),
@@ -415,7 +407,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 if (!isFirst)
                   Expanded(
                     child: Container(
-                      width: 1.5,
+                      width: 2,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
@@ -462,7 +454,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 if (!isLast)
                   Expanded(
                     child: Container(
-                      width: 1.5,
+                      width: 2,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
@@ -489,10 +481,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
               padding: const EdgeInsets.all(14),
               blur: 12,
               opacity: 0.05,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-                width: 1,
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -694,7 +682,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   // ===== HELPERS =====
   List<Task> _getFilteredTasks() {
-    final tasks = widget.taskService.tasks;
+    final tasks = widget.taskService.tasks.where((t) => t.status != TaskStatus.done).toList();
     if (_selectedCategory == null) return tasks;
     return tasks.where((t) => t.category == _selectedCategory).toList();
   }

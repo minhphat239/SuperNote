@@ -39,7 +39,7 @@ class _TaskConfirmationDialogState extends State<TaskConfirmationDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
@@ -47,7 +47,7 @@ class _TaskConfirmationDialogState extends State<TaskConfirmationDialog> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppColors.surface.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               border: Border.all(
                 color: AppColors.primary.withValues(alpha: 0.25),
                 width: 1,
@@ -610,7 +610,7 @@ class _TaskConfirmationDialogState extends State<TaskConfirmationDialog> {
     String dateStr = '';
     if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
       dateStr = 'Hôm nay';
-    } else if (dt.year == now.year && dt.month == now.month && dt.day == now.day + 1) {
+    } else if (dt.isAtSameMomentAs(DateTime(now.year, now.month, now.day + 1))) {
       dateStr = 'Ngày mai';
     } else {
       dateStr = DateFormat('EEEE dd/MM', 'vi').format(dt);

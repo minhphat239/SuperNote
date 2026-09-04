@@ -76,6 +76,38 @@ class AppLocalizationsEn extends AppLocalizations {
       'Notifications will be paused during this period';
 
   @override
+  String get timeStart => 'Start';
+
+  @override
+  String get timeEnd => 'End';
+
+  @override
+  String get detailedBackground => 'Detailed Background';
+
+  @override
+  String get detailedBackgroundDesc =>
+      'Toggle orbs and background animation effects';
+
+  @override
+  String get attachmentFile => 'File';
+
+  @override
+  String attachmentCount(Object count) {
+    return '$count attachments';
+  }
+
+  @override
+  String get attachFile => 'Attach file';
+
+  @override
+  String get chooseFromDevice => 'Choose from device';
+
+  @override
+  String filesAttached(Object count) {
+    return '$count files attached';
+  }
+
+  @override
   String get accountTitle => 'Account';
 
   @override
@@ -191,6 +223,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get delete => 'Delete';
+
+  @override
+  String get snooze => 'Snooze';
 
   @override
   String get edit => 'Edit';
@@ -312,6 +347,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarTitle => 'Calendar';
+
+  @override
+  String get timelineTitle => 'Timeline';
+
+  @override
+  String get tasksTitle => 'Tasks';
+
+  @override
+  String get weekdayMon => 'Mo';
+
+  @override
+  String get weekdayTue => 'Tu';
+
+  @override
+  String get weekdayWed => 'We';
+
+  @override
+  String get weekdayThu => 'Th';
+
+  @override
+  String get weekdayFri => 'Fr';
+
+  @override
+  String get weekdaySat => 'Sa';
+
+  @override
+  String get weekdaySun => 'Su';
 
   @override
   String get todayButton => 'Today';
@@ -520,10 +582,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateNewVersion => 'New version available';
 
   @override
+  String updateDescription(Object version) {
+    return 'A new version $version is available. Tap update to automatically install.';
+  }
+
+  @override
   String get updateSkip => 'Skip';
 
   @override
-  String get updateNow => 'Update now';
+  String get updateNow => 'Update';
 
   @override
   String get updateDownloading => 'Downloading update...';
@@ -668,4 +735,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authGenericError => 'An error occurred. Please try again.';
+
+  @override
+  String get authForgotPassword => 'Forgot password?';
+
+  @override
+  String get authPasswordResetSent =>
+      'Password reset email sent. Check your inbox.';
+
+  @override
+  String get aiGreeting =>
+      'Hello! I\'m SuperNote\'s AI assistant.\nYou can ask me about tasks, schedules, or ask me to analyze your work.';
 }

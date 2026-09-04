@@ -34,6 +34,7 @@ class Note {
       'isDeleted': isDeleted,
       'syncId': syncId,
       'syncVersion': syncVersion,
+      'isSynced': isSynced,
     };
   }
 
@@ -42,12 +43,12 @@ class Note {
       noteId: map['noteId'] ?? '',
       title: map['title'] ?? '',
       content: map['content'] ?? '',
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
+      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
+      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : DateTime.now(),
       isDeleted: map['isDeleted'] ?? false,
       syncId: map['syncId'],
       syncVersion: map['syncVersion'] ?? 0,
-      isSynced: true,
+      isSynced: map['isSynced'] ?? false,
     );
   }
 
