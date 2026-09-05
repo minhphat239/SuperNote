@@ -134,6 +134,8 @@ class AutoUpdateService extends ChangeNotifier {
   static const String _repoName = 'SuperNote';
   static const String _lastCheckKey = 'last_update_check';
   static const String _downloadedFileKey = 'downloaded_update_file';
+  static const String _hasUpdateKey = 'has_update_available';
+  static const String _updateVersionKey = 'update_latest_version';
 
   static const Duration _checkInterval = Duration(seconds: 0);
 
@@ -146,6 +148,7 @@ class AutoUpdateService extends ChangeNotifier {
   bool _downloadComplete = false;
   String? _downloadedFilePath;
   String? _error;
+  bool _hasShownDialogThisSession = false;
 
   UpdateInfo? get pendingUpdate => _pendingUpdate;
   double get downloadProgress => _downloadProgress;
@@ -153,6 +156,14 @@ class AutoUpdateService extends ChangeNotifier {
   bool get downloadComplete => _downloadComplete;
   String? get downloadedFilePath => _downloadedFilePath;
   String? get error => _error;
+  bool get hasShownDialogThisSession => _hasShownDialogThisSession;
+  set hasShownDialogThisSession(bool value) => _hasShownDialogThisSession = value;
+
+  /// Check SharedPreferences for persisted update state (for red dot)
+  Future<bool> get hasUpdateAvailable async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hasUpdateKey) ?? false;
+  }
 
   static UpdatePlatform get currentPlatform {
     if (kIsWeb) return UpdatePlatform.web;
@@ -198,6 +209,10 @@ class AutoUpdateService extends ChangeNotifier {
 
       if (_isNewerVersion(updateInfo.version, currentVersion)) {
         _pendingUpdate = updateInfo;
+        // Persist for red dot indicator
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_hasUpdateKey, true);
+        await prefs.setString(_updateVersionKey, updateInfo.version);
         notifyListeners();
         developer.log('Update available: ${updateInfo.version} (current: $currentVersion)', name: 'AutoUpdateService');
         return updateInfo;
@@ -392,6 +407,9 @@ class AutoUpdateService extends ChangeNotifier {
 
   Future<void> clearPendingUpdate() async {
     _pendingUpdate = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_hasUpdateKey);
+    await prefs.remove(_updateVersionKey);
     notifyListeners();
   }
 

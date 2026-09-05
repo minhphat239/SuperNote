@@ -516,6 +516,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _previousIndex = 0;
   StreamSubscription<String>? _notifTapSub;
+  bool _hasUpdate = false;
 
   /// Clamp _currentIndex to a safe range to prevent IndexedStack out-of-bounds.
   int get _safeIndex {
@@ -532,7 +533,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     StartupLog.mark('mainShell-initState');
     widget.themeService.addListener(_onThemeChanged);
+    widget.updateService.addListener(_onUpdateChanged);
     StartupLog.mark('mainShell-screens-built');
+
+    _loadUpdateState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() {});
@@ -671,18 +675,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _checkForUpdates() async {
+    if (widget.updateService.hasShownDialogThisSession) return;
     try {
       final update = await widget.updateService.checkForUpdate();
+      _loadUpdateState();
 
       if (update != null && mounted) {
+        widget.updateService.hasShownDialogThisSession = true;
         await showDialog<String>(
           context: context,
           barrierDismissible: !update.forceUpdate,
           builder: (_) => UpdateCheckDialog(updateService: widget.updateService),
         );
-        if (widget.updateService.downloadComplete) {
-          widget.updateService.clearPendingUpdate();
-        }
       }
     } catch (e) {
       debugPrint('[UpdateCheck] Error: $e');
@@ -702,10 +706,23 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  void _onUpdateChanged() {
+    if (!mounted) return;
+    widget.updateService.hasUpdateAvailable.then((v) {
+      if (mounted) setState(() => _hasUpdate = v);
+    });
+  }
+
+  Future<void> _loadUpdateState() async {
+    final hasUpdate = await widget.updateService.hasUpdateAvailable;
+    if (mounted) setState(() => _hasUpdate = hasUpdate);
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.themeService.removeListener(_onThemeChanged);
+    widget.updateService.removeListener(_onUpdateChanged);
     _notifTapSub?.cancel();
     super.dispose();
   }
@@ -874,7 +891,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                             // Timeline
                             _buildNavItem(2, Icons.view_timeline_outlined, Icons.view_timeline_rounded, 'Timeline'),
                             // Settings
-                            _buildNavItem(3, Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
+                            _buildNavItem(3, Icons.settings_outlined, Icons.settings_rounded, 'Settings', showBadge: _hasUpdate),
                           ],
                         ),
                       ),
@@ -892,7 +909,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   // ===== CUSTOM NAV ITEM =====
-  Widget _buildNavItem(int index, IconData icon, IconData selectedIcon, String label) {
+  Widget _buildNavItem(int index, IconData icon, IconData selectedIcon, String label, {bool showBadge = false}) {
     final isSelected = _currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -901,10 +918,32 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? selectedIcon : icon,
-              size: 22,
-              color: isSelected ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.6),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? selectedIcon : icon,
+                  size: 22,
+                  color: isSelected ? AppColors.primary : AppColors.textMuted.withValues(alpha: 0.6),
+                ),
+                if (showBadge)
+                  Positioned(
+                    top: -2,
+                    right: -4,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.background,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(
