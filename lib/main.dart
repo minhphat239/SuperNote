@@ -745,6 +745,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        // Only handle tab switching — do NOT pop routes.
+        // Pushed routes (TaskDetailScreen, etc.) have their own PopScope
+        // that handles back via _saveAndPop() or similar.
         if (_previousIndex != _currentIndex) {
           setState(() {
             final temp = _currentIndex;

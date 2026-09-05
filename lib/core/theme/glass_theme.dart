@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+enum BackgroundEffect { none, rain, sunrise }
+
 class GlassTheme {
   final String id;
   final String name;
@@ -44,6 +46,9 @@ class GlassTheme {
   /// Minimalist themes (Dark OLED, Minimal Slate, Sunset) set this to false for performance.
   final bool hasDetailedOrbs;
 
+  /// Animated effect for simple themes (rain, sunrise, etc.)
+  final BackgroundEffect backgroundEffect;
+
   const GlassTheme({
     required this.id,
     required this.name,
@@ -68,6 +73,7 @@ class GlassTheme {
     this.onAccent = Colors.white,
     this.videoPath,
     this.hasDetailedOrbs = true,
+    this.backgroundEffect = BackgroundEffect.none,
   });
 
   // ===== PRESET GLOW PALETTES =====
@@ -108,7 +114,7 @@ class GlassTheme {
     primaryGlowColor: glowCyberCyanPrimary,
     accentGlowColor: glowCyberCyanAccent,
     glassBorderColor: Color(0x1A00F5FF),
-    videoPath: 'assets/videos/city.mp4',
+    videoPath: 'assets/videos/DreamCity.mp4',
   );
 
   // ===== 2. PEACEFUL (Matrix Green - Emerald Focus Glow) =====
@@ -134,7 +140,7 @@ class GlassTheme {
     accentGlowColor: glowEmeraldFocusAccent,
     glassBorderColor: Color(0x1A00FF66),
     onAccent: Color(0xFF1A1A1A),
-    videoPath: 'assets/videos/yenbinh.mp4',
+    videoPath: 'assets/videos/GreenGrash.mp4',
   );
 
   // ===== 3. PINKVIBE (Sunset Vaporwave - Neon Violet Glow) =====
@@ -159,7 +165,7 @@ class GlassTheme {
     primaryGlowColor: glowNeonVioletPrimary,
     accentGlowColor: glowNeonVioletAccent,
     glassBorderColor: Color(0x1AFF5E00),
-    videoPath: 'assets/videos/pink_vibe.mp4',
+    videoPath: 'assets/videos/PinkCity.mp4',
   );
 
   // ===== 4. DARK OLED (Minimal Solid - Emerald / Mint Glow) =====
@@ -186,6 +192,7 @@ class GlassTheme {
     glassBorderColor: Color(0x1A38EF7D),
     onAccent: Color(0xFF000000),
     hasDetailedOrbs: false,
+    backgroundEffect: BackgroundEffect.rain,
   );
 
   // ===== 5. MINIMAL SLATE (Slate Blue Glow) =====
@@ -211,6 +218,7 @@ class GlassTheme {
     accentGlowColor: Color(0xFF8338EC),
     glassBorderColor: Color(0x1A3A86FF),
     hasDetailedOrbs: false,
+    backgroundEffect: BackgroundEffect.rain,
   );
 
   // ===== 6. SUNSET GRADIENT (Amber Gold Glow) =====
@@ -236,6 +244,7 @@ class GlassTheme {
     accentGlowColor: glowAmberGoldAccent,
     glassBorderColor: Color(0x1AFF9E00),
     hasDetailedOrbs: false,
+    backgroundEffect: BackgroundEffect.sunrise,
   );
 
   static const all = [city, peaceful, pinkVibe, darkOled, minimalSlate, sunsetGradient];

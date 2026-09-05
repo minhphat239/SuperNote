@@ -66,6 +66,7 @@ class AppColors {
   static List<Color> get orbColors => _activeTheme.orbColors;
   static double get orbOpacity => _activeTheme.orbOpacity;
   static bool get hasDetailedOrbs => _activeTheme.hasDetailedOrbs;
+  static BackgroundEffect get backgroundEffect => _activeTheme.backgroundEffect;
   static Color get primaryGlowColor => _activeTheme.primaryGlowColor;
   static Color get accentGlowColor => _activeTheme.accentGlowColor;
 
