@@ -1527,42 +1527,81 @@ abstract class AppLocalizations {
   String get aiGreeting;
 
   /// No description provided for @feedback.
+  ///
+  /// In vi, this message translates to:
+  /// **'Phản hồi'**
   String get feedback;
 
   /// No description provided for @feedbackTitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi phản hồi'**
   String get feedbackTitle;
 
   /// No description provided for @feedbackSubtitle.
+  ///
+  /// In vi, this message translates to:
+  /// **'Báo lỗi hoặc gợi ý cải thiện'**
   String get feedbackSubtitle;
 
   /// No description provided for @feedbackDesc.
+  ///
+  /// In vi, this message translates to:
+  /// **'Phản hồi của bạn giúp chúng tôi cải thiện ứng dụng. Nó sẽ được gửi ẩn danh đến đội ngũ phát triển.'**
   String get feedbackDesc;
 
   /// No description provided for @feedbackHint.
+  ///
+  /// In vi, this message translates to:
+  /// **'Mô tả lỗi hoặc gợi ý của bạn...'**
   String get feedbackHint;
 
   /// No description provided for @feedbackSubmit.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi phản hồi'**
   String get feedbackSubmit;
 
   /// No description provided for @feedbackSuccess.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi phản hồi thành công! Cảm ơn bạn.'**
   String get feedbackSuccess;
 
   /// No description provided for @feedbackError.
+  ///
+  /// In vi, this message translates to:
+  /// **'Gửi phản hồi thất bại. Vui lòng thử lại.'**
   String get feedbackError;
 
   /// No description provided for @feedbackSetup.
+  ///
+  /// In vi, this message translates to:
+  /// **'Cài đặt Phản hồi'**
   String get feedbackSetup;
 
   /// No description provided for @feedbackSetupDesc.
+  ///
+  /// In vi, this message translates to:
+  /// **'Nhập URL Google Apps Script Web App để nhận phản hồi.'**
   String get feedbackSetupDesc;
 
   /// No description provided for @feedbackSetupSave.
+  ///
+  /// In vi, this message translates to:
+  /// **'Lưu URL'**
   String get feedbackSetupSave;
 
   /// No description provided for @feedbackChangeUrl.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đổi URL'**
   String get feedbackChangeUrl;
 
   /// No description provided for @feedbackUrlCleared.
+  ///
+  /// In vi, this message translates to:
+  /// **'Đã xóa URL'**
   String get feedbackUrlCleared;
 }
 

@@ -16,7 +16,7 @@
 
 // ========== CẤU HÌNH ==========
 // Thay email dev vào đây!
-const EMAIL_DEV = "email-cua-ban@gmail.com";
+const EMAIL_DEV = "phatngominh.hcm@gmail.com";
 
 // Tên sheet trong Google Sheets
 const SHEET_NAME = "Feedback";

@@ -756,7 +756,8 @@ class AppLocalizationsVi extends AppLocalizations {
   String get feedbackSubtitle => 'Báo lỗi hoặc gợi ý cải thiện';
 
   @override
-  String get feedbackDesc => 'Phản hồi của bạn giúp chúng tôi cải thiện ứng dụng. Nó sẽ được gửi ẩn danh đến đội ngũ phát triển.';
+  String get feedbackDesc =>
+      'Phản hồi của bạn giúp chúng tôi cải thiện ứng dụng. Nó sẽ được gửi ẩn danh đến đội ngũ phát triển.';
 
   @override
   String get feedbackHint => 'Mô tả lỗi hoặc gợi ý của bạn...';
@@ -774,7 +775,8 @@ class AppLocalizationsVi extends AppLocalizations {
   String get feedbackSetup => 'Cài đặt Phản hồi';
 
   @override
-  String get feedbackSetupDesc => 'Nhập URL Google Apps Script Web App để nhận phản hồi.';
+  String get feedbackSetupDesc =>
+      'Nhập URL Google Apps Script Web App để nhận phản hồi.';
 
   @override
   String get feedbackSetupSave => 'Lưu URL';

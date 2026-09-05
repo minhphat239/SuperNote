@@ -757,7 +757,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedbackSubtitle => 'Report bugs or suggest improvements';
 
   @override
-  String get feedbackDesc => 'Your feedback helps us improve. It will be sent anonymously to the development team.';
+  String get feedbackDesc =>
+      'Your feedback helps us improve. It will be sent anonymously to the development team.';
 
   @override
   String get feedbackHint => 'Describe the issue or your suggestion...';
@@ -775,7 +776,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedbackSetup => 'Setup Feedback';
 
   @override
-  String get feedbackSetupDesc => 'Enter your Google Apps Script Web App URL to receive feedback.';
+  String get feedbackSetupDesc =>
+      'Enter your Google Apps Script Web App URL to receive feedback.';
 
   @override
   String get feedbackSetupSave => 'Save URL';
