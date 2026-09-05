@@ -127,6 +127,31 @@ class MainActivity : FlutterActivity() {
                 "getSupportedAbis" -> {
                     result.success(Build.SUPPORTED_ABIS.toList())
                 }
+                "installApk" -> {
+                    try {
+                        val path = call.argument<String>("path")
+                        if (path != null) {
+                            val file = File(path)
+                            val uri = FileProvider.getUriForFile(
+                                this,
+                                "${packageName}.fileProvider",
+                                file
+                            )
+                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(installIntent)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_PATH", "Path is null", null)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Install APK error: $e")
+                        result.success(false)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

@@ -183,6 +183,8 @@ class AutoUpdateService extends ChangeNotifier {
         headers: {
           'Accept': 'application/vnd.github.v3+json',
           'User-Agent': 'SuperNote/$currentVersion',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
       ).timeout(const Duration(seconds: 10));
 
@@ -339,6 +341,15 @@ class AutoUpdateService extends ChangeNotifier {
       if (platform == UpdatePlatform.android) {
         const channel = MethodChannel('com.example.super_note/update');
         try {
+          final result = await channel.invokeMethod<bool>('installApk', {
+            'path': file.path,
+          });
+          if (result == true) return true;
+        } catch (e) {
+          developer.log('Native install failed, trying fallback: $e', name: 'AutoUpdateService');
+        }
+
+        try {
           final uri = await channel.invokeMethod<String>('getUriForFile', {
             'path': file.path,
           });
@@ -350,7 +361,7 @@ class AutoUpdateService extends ChangeNotifier {
             );
           }
         } catch (e) {
-          developer.log('FileProvider failed, trying fallback: $e', name: 'AutoUpdateService');
+          developer.log('FileProvider fallback failed: $e', name: 'AutoUpdateService');
         }
 
         return _openReleasesPage();

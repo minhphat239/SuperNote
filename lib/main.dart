@@ -680,7 +680,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           barrierDismissible: !update.forceUpdate,
           builder: (_) => UpdateCheckDialog(updateService: widget.updateService),
         );
-        widget.updateService.clearPendingUpdate();
+        if (widget.updateService.downloadComplete) {
+          widget.updateService.clearPendingUpdate();
+        }
       }
     } catch (e) {
       debugPrint('[UpdateCheck] Error: $e');
