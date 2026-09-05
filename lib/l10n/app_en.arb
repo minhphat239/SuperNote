@@ -269,5 +269,18 @@
   "authGenericError": "An error occurred. Please try again.",
   "authForgotPassword": "Forgot password?",
   "authPasswordResetSent": "Password reset email sent. Check your inbox.",
-  "aiGreeting": "Hello! I'm SuperNote's AI assistant.\nYou can ask me about tasks, schedules, or ask me to analyze your work."
+  "aiGreeting": "Hello! I'm SuperNote's AI assistant.\nYou can ask me about tasks, schedules, or ask me to analyze your work.",
+  "feedback": "Feedback",
+  "feedbackTitle": "Send Feedback",
+  "feedbackSubtitle": "Report bugs or suggest improvements",
+  "feedbackDesc": "Your feedback helps us improve. It will be sent anonymously to the development team.",
+  "feedbackHint": "Describe the issue or your suggestion...",
+  "feedbackSubmit": "Send Feedback",
+  "feedbackSuccess": "Feedback sent successfully! Thank you.",
+  "feedbackError": "Failed to send feedback. Please try again.",
+  "feedbackSetup": "Setup Feedback",
+  "feedbackSetupDesc": "Enter your Google Apps Script Web App URL to receive feedback.",
+  "feedbackSetupSave": "Save URL",
+  "feedbackChangeUrl": "Change URL",
+  "feedbackUrlCleared": "URL cleared"
 }

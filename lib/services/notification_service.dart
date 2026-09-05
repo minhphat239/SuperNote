@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:developer' as developer;
 import '../models/task.dart';
@@ -38,16 +39,14 @@ class NotificationService {
   static const String _prefsKeyQuietStart = 'notif_quiet_start';
   static const String _prefsKeyQuietEnd = 'notif_quiet_end';
   static const String _prefsKeyDefaultPreReminder = 'notif_default_pre_reminder';
-  static const String _prefsKeyLastMissedTime = 'notif_last_missed_time';
-  static const String _prefsKeyMissedCountToday = 'notif_missed_count_today';
-  static const String _prefsKeyMissedDate = 'notif_missed_date';
 
-  final Map<int, Timer> _timers = {};
-  final Map<int, DateTime> _scheduledTimes = {};
+  static const int _overdueNotificationId = 888888;
+  static const int _morningSummaryId = 777777;
+  static const int _eveningSummaryId = 666666;
 
-  // ===== Smart Notification Constants =====
-  static const int _missedIntervalHours = 3;
-  static const int _missedMaxPerDay = 4;
+  List<Task> Function()? _getAllTasksCallback;
+
+  // ===== INIT =====
 
   Future<void> init() async {
     if (_initialized) return;
@@ -75,8 +74,8 @@ class NotificationService {
       );
 
       await _createNotificationChannel();
-
       await _requestPermissions();
+      await _scheduleDailySummaries();
 
       _initialized = true;
       developer.log('init() completed successfully', name: 'NotificationService');
@@ -121,7 +120,7 @@ class NotificationService {
         _permissionsGranted = true;
       }
     } catch (e) {
-      developer.log('Permission request failed: $e', name: 'NotificationService');
+      developer.log('Permission request failed', error: e, name: 'NotificationService');
       _permissionsGranted = false;
     }
   }
@@ -145,7 +144,7 @@ class NotificationService {
       _permissionsGranted = true;
       return true;
     } catch (e) {
-      developer.log('Permission check failed: $e', name: 'NotificationService');
+      developer.log('Permission check failed', error: e, name: 'NotificationService');
       _permissionsGranted = false;
       return false;
     }
@@ -170,7 +169,7 @@ class NotificationService {
       }
       return true;
     } catch (e) {
-      developer.log('Check notifications enabled failed: $e', name: 'NotificationService');
+      developer.log('Check notifications enabled failed', error: e, name: 'NotificationService');
       return false;
     }
   }
@@ -187,84 +186,47 @@ class NotificationService {
     }
   }
 
-  // ===== Core: Post notification via show() (same as test notification) =====
+  // ===== CORE: Notification Details =====
 
-  Future<void> _postNotification({
-    required int id,
-    required String title,
-    required String body,
-    required String payload,
-    bool withActions = true,
-  }) async {
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-      actions: withActions ? const [
-        AndroidNotificationAction('done', '✅ Done', showsUserInterface: true),
-        AndroidNotificationAction('snooze', '💤 Snooze', showsUserInterface: true),
-      ] : null,
+  NotificationDetails _taskNotificationDetails({bool withActions = true}) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        enableVibration: true,
+        playSound: true,
+        actions: withActions ? const [
+          AndroidNotificationAction('done', '✅ Done', showsUserInterface: true),
+          AndroidNotificationAction('snooze', '💤 Snooze', showsUserInterface: true),
+        ] : null,
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        categoryIdentifier: 'task_reminder',
+      ),
     );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      categoryIdentifier: 'task_reminder',
-    );
-
-    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    try {
-      await _notifications.show(id, title, body, details, payload: payload);
-      developer.log('_postNotification SUCCESS id=$id "$title"', name: 'NotificationService');
-    } catch (e) {
-      developer.log('_postNotification FAILED id=$id: $e', name: 'NotificationService');
-    }
   }
 
-  // ===== Timer-based scheduling for individual task notifications =====
+  // ===== NOTIFICATION ID CONVENTION =====
+  //
+  // Main (deadline):     task.id.hashCode
+  // Pre-reminder:        task.id.hashCode + 1
+  // Overdue summary:     888888 (fixed)
+  // Morning summary:     777777 (fixed)
+  // Evening summary:     666666 (fixed)
 
-  void _scheduleTimer({
-    required int id,
-    required String title,
-    required String body,
-    required DateTime fireAt,
-    required String payload,
-  }) {
-    _cancelTimer(id);
+  // ===== TASK NOTIFICATION SCHEDULING =====
 
-    final now = DateTime.now();
-    final delay = fireAt.difference(now);
-
-    if (delay.isNegative) {
-      developer.log('Timer already passed for id=$id, skipping', name: 'NotificationService');
-      return;
-    }
-
-    developer.log('Setting timer id=$id to fire in ${delay.inSeconds}s at $fireAt', name: 'NotificationService');
-    _scheduledTimes[id] = fireAt;
-
-    _timers[id] = Timer(delay, () async {
-      _timers.remove(id);
-      _scheduledTimes.remove(id);
-      await _postNotification(id: id, title: title, body: body, payload: payload);
-    });
-  }
-
-  void _cancelTimer(int id) {
-    _timers[id]?.cancel();
-    _timers.remove(id);
-    _scheduledTimes.remove(id);
-  }
-
-  // ===== Public API: Schedule task notifications =====
-
+  /// Schedule both pre-reminder and main notification for a task.
+  /// - Main: always at deadline (if in future)
+  /// - Pre: only if preTime > now + 1 minute AND preTime < deadline
+  /// - Quiet hours: shift both, but drop pre if too close to main (<15 min gap)
   Future<void> scheduleTaskNotification(Task task) async {
     if (_isLinux) return;
     if (!_initialized) await init();
@@ -274,186 +236,314 @@ class NotificationService {
     if (deadline == null) return;
 
     final now = DateTime.now();
-    if (deadline.isBefore(now) || deadline.isAtSameMomentAs(now)) {
-      developer.log('Task "${task.title}" deadline in past, skipping', name: 'NotificationService');
+    final mainId = task.id.hashCode;
+    final preId = task.id.hashCode + 1;
+
+    // 1. Cancel old notifications for this task first
+    await cancelTaskReminder(task.id);
+
+    // 2. Skip if deadline already passed → Overdue Summary handles it
+    if (deadline.isBefore(now)) {
+      developer.log('Deadline passed for "${task.title}", skipping main/pre', name: 'NotificationService');
       return;
     }
 
-    final deltaT = deadline.difference(now).inMinutes;
-
-    developer.log('scheduleTaskNotification: "${task.title}" deadline=$deadline', name: 'NotificationService');
-
-    // Main notification at deadline
-    _scheduleTimer(
-      id: task.id.hashCode,
+    // 3. Schedule MAIN notification at deadline
+    final tzMain = tz.TZDateTime.from(deadline, tz.local);
+    await _doSchedule(
+      id: mainId,
       title: '⏰ SuperNote',
       body: _getDeadlineBody(task),
-      fireAt: deadline,
+      scheduledDate: tzMain,
       payload: task.id,
     );
 
-    // Pre-reminder
-    if (deltaT > 30 && task.preReminderOffset != null && task.preReminderOffset! > 0) {
-      final preTime = deadline.subtract(Duration(minutes: task.preReminderOffset!));
-      if (preTime.isAfter(now)) {
-        _scheduleTimer(
-          id: task.id.hashCode + 10000,
-          title: '📋 SuperNote',
-          body: _getPreReminderBody(task),
-          fireAt: preTime,
-          payload: task.id,
-        );
+    // 4. Schedule PRE-reminder (smart logic)
+    final preOffset = task.preReminderOffset;
+    if (preOffset != null && preOffset > 0) {
+      final preTime = deadline.subtract(Duration(minutes: preOffset));
+
+      // Only schedule if preTime is in the future (at least 1 minute from now)
+      if (preTime.isAfter(now.add(const Duration(minutes: 1))) && preTime.isBefore(deadline)) {
+        final tzPre = tz.TZDateTime.from(preTime, tz.local);
+
+        // Quiet hours: shift if needed
+        var adjustedPre = await _adjustForQuietHours(tzPre);
+        final adjustedMain = await _adjustForQuietHours(tzMain);
+
+        // Quiet Hours Adjustment: if adjusted time > deadline, cancel notification
+        if (adjustedPre != null && adjustedPre.isAfter(tz.TZDateTime.from(deadline, tz.local))) {
+          developer.log('Pre adjusted time $adjustedPre exceeds deadline, cancelling pre for "${task.title}"', name: 'NotificationService');
+          adjustedPre = null;
+        }
+        if (adjustedMain != null && adjustedMain.isAfter(tz.TZDateTime.from(deadline, tz.local))) {
+          developer.log('Main adjusted time $adjustedMain exceeds deadline, cancelling main for "${task.title}"', name: 'NotificationService');
+          await _notifications.cancel(mainId);
+          return;
+        }
+
+        // Dedup: if pre and main are too close (< 15 min gap), drop pre
+        if (adjustedPre != null && adjustedMain != null) {
+          final gap = adjustedMain.difference(adjustedPre).inMinutes;
+          if (gap < 15) {
+            developer.log('Pre too close to main (${gap}m), dropping pre for "${task.title}"', name: 'NotificationService');
+          } else {
+            await _doSchedule(
+              id: preId,
+              title: '📋 SuperNote',
+              body: _getPreReminderBody(task),
+              scheduledDate: adjustedPre,
+              payload: task.id,
+            );
+          }
+        } else if (adjustedPre != null) {
+          await _doSchedule(
+            id: preId,
+            title: '📋 SuperNote',
+            body: _getPreReminderBody(task),
+            scheduledDate: adjustedPre,
+            payload: task.id,
+          );
+        }
+      } else {
+        developer.log('Pre-time $preTime is in past or too close, skipping pre for "${task.title}"', name: 'NotificationService');
       }
     }
   }
 
-  Future<void> cancelTaskNotifications(Task task) async {
+  /// Cancel BOTH main and pre-reminder for a task
+  Future<void> cancelTaskReminder(String taskId) async {
     if (_isLinux) return;
-    _cancelTimer(task.id.hashCode);
-    _cancelTimer(task.id.hashCode + 10000);
-  }
-
-  Future<void> cancelAllNotifications() async {
-    if (_isLinux) return;
-    for (final timer in _timers.values) {
-      timer.cancel();
+    final mainId = taskId.hashCode;
+    final preId = taskId.hashCode + 1;
+    try {
+      await _notifications.cancel(mainId);
+      await _notifications.cancel(preId);
+      developer.log('cancelTaskReminder: cancelled main=$mainId pre=$preId', name: 'NotificationService');
+    } catch (e) {
+      developer.log('cancelTaskReminder FAILED: $e', name: 'NotificationService');
     }
-    _timers.clear();
-    _scheduledTimes.clear();
   }
 
+  Future<void> cancelAllReminders() async {
+    if (_isLinux) return;
+    try {
+      await _notifications.cancelAll();
+      developer.log('cancelAllReminders done', name: 'NotificationService');
+    } catch (e) {
+      developer.log('cancelAllReminders FAILED: $e', name: 'NotificationService');
+    }
+  }
+
+  // ===== RESCHEDULE (app restart / resume) =====
+
+  /// Reschedule only tasks with deadline > now
   Future<void> rescheduleAllTasks(List<Task> tasks) async {
     developer.log('rescheduleAllTasks called with ${tasks.length} tasks', name: 'NotificationService');
-    await cancelAllNotifications();
+    await cancelAllReminders();
+    await _scheduleDailySummaries();
+
     int scheduled = 0;
+    final now = DateTime.now();
     for (final task in tasks) {
-      if (task.status == TaskStatus.pending || task.status == TaskStatus.snoozed) {
-        await scheduleTaskNotification(task);
-        scheduled++;
-      }
+      if (task.status != TaskStatus.pending && task.status != TaskStatus.snoozed) continue;
+      final deadline = task.deadline;
+      if (deadline == null || deadline.isBefore(now)) continue;
+      await scheduleTaskNotification(task);
+      scheduled++;
     }
-    developer.log('rescheduleAllTasks done, scheduled $scheduled notifications', name: 'NotificationService');
+    developer.log('rescheduleAllTasks done, scheduled $scheduled (filtered by deadline > now)', name: 'NotificationService');
   }
 
-  // ===== Smart Missed Tasks Notification (Grouped, Frequency-Limited) =====
+  // ===== DAILY SUMMARIES =====
 
-  /// Check if we should fire a missed notification based on frequency rules:
-  /// - Max 4 times per day
-  /// - At least 3 hours between each
-  Future<bool> _canFireMissedNotification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final today = '${now.year}-${now.month}-${now.day}';
+  /// Schedule morning (08:00) and evening (20:00) daily summaries
+  Future<void> _scheduleDailySummaries() async {
+    final now = tz.TZDateTime.now(tz.local);
 
-    // Check if it's a new day → reset counter
-    final lastDate = prefs.getString(_prefsKeyMissedDate) ?? '';
-    if (lastDate != today) {
-      await prefs.setInt(_prefsKeyMissedCountToday, 0);
-      await prefs.setString(_prefsKeyMissedDate, today);
+    // Morning summary at 08:00
+    var morningTarget = tz.TZDateTime(now.location, now.year, now.month, now.day, 8, 0);
+    if (morningTarget.isBefore(now)) {
+      morningTarget = morningTarget.add(const Duration(days: 1));
+    }
+    await _doScheduleSummary(
+      id: _morningSummaryId,
+      title: '🌅 Chào buổi sáng!',
+      body: 'Mở SuperNote để xem hôm nay có task nào cần xử lý không nhé.',
+      scheduledDate: morningTarget,
+    );
+
+    // Evening summary at 20:00 — generic daily wrap-up (no overdue push)
+    var eveningTarget = tz.TZDateTime(now.location, now.year, now.month, now.day, 20, 0);
+    if (eveningTarget.isBefore(now)) {
+      eveningTarget = eveningTarget.add(const Duration(days: 1));
     }
 
-    // Check max per day
-    final countToday = prefs.getInt(_prefsKeyMissedCountToday) ?? 0;
-    if (countToday >= _missedMaxPerDay) {
-      developer.log('Missed notification limit reached: $countToday/$_missedMaxPerDay today', name: 'NotificationService');
-      return false;
-    }
+    final allTasks = _getAllTasksCallback?.call() ?? [];
+    final pendingCount = allTasks
+        .where((t) => (t.status == TaskStatus.pending || t.status == TaskStatus.snoozed) && t.deadline != null)
+        .length;
 
-    // Check interval
-    final lastTime = prefs.getInt(_prefsKeyLastMissedTime) ?? 0;
-    final lastDateTime = DateTime.fromMillisecondsSinceEpoch(lastTime);
-    final hoursSince = now.difference(lastDateTime).inHours;
-    if (hoursSince < _missedIntervalHours) {
-      developer.log('Missed notification interval not met: ${hoursSince}h < ${_missedIntervalHours}h', name: 'NotificationService');
-      return false;
+    if (pendingCount > 0) {
+      final body = pendingCount == 1
+          ? 'Bạn còn 1 task đang chờ xử lý. Bấm để sắp xếp lại nhé!'
+          : 'Bạn còn $pendingCount task đang chờ xử lý. Bấm để sắp xếp lại nhé!';
+      await _doScheduleSummary(
+        id: _eveningSummaryId,
+        title: '📌 Tổng kết ngày',
+        body: body,
+        scheduledDate: eveningTarget,
+      );
     }
-
-    return true;
   }
 
-  Future<void> _recordMissedNotification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    await prefs.setInt(_prefsKeyLastMissedTime, now.millisecondsSinceEpoch);
-    final count = (prefs.getInt(_prefsKeyMissedCountToday) ?? 0) + 1;
-    await prefs.setInt(_prefsKeyMissedCountToday, count);
-    developer.log('Recorded missed notification #$count today', name: 'NotificationService');
+  Future<void> _doScheduleSummary({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+  }) async {
+    try {
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDesc,
+            importance: Importance.high,
+            priority: Priority.high,
+            showWhen: true,
+            enableVibration: true,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'daily_summary',
+      );
+      developer.log('Daily summary scheduled id=$id at $scheduledDate', name: 'NotificationService');
+    } catch (e) {
+      developer.log('Daily summary FAILED id=$id: $e', name: 'NotificationService');
+    }
   }
 
-  /// Fire grouped missed notification — ONE notification for ALL overdue tasks
-  Future<void> fireMissedNotifications(List<Task> tasks) async {
+  // ===== OVERDUE SUMMARY =====
+
+  void setTaskProvider(List<Task> Function() callback) {
+    _getAllTasksCallback = callback;
+  }
+
+  /// No Overdue Push: KHÔNG bắn Push Notification khi task quá hạn.
+  /// Task quá hạn chỉ hiển thị trong section ⚠️ Quá hạn trên In-App UI.
+  /// Method này giữ lại để tương thích API, nhưng không gửi notification.
+  Future<void> updateOverdueSummary([List<Task>? tasks]) async {
     if (_isLinux) return;
     if (!_initialized) await init();
     if (!_initialized) return;
 
+    final allTasks = tasks ?? _getAllTasksCallback?.call() ?? [];
     final now = DateTime.now();
 
-    // Collect overdue tasks
-    final overdue = <Task>[];
-    for (final task in tasks) {
+    int overdueCount = 0;
+    for (final task in allTasks) {
       if (task.status != TaskStatus.pending && task.status != TaskStatus.snoozed) continue;
       final deadline = task.deadline;
       if (deadline == null) continue;
-      if (deadline.isBefore(now)) {
-        overdue.add(task);
-      }
+      if (deadline.isBefore(now)) overdueCount++;
     }
 
-    if (overdue.isEmpty) return;
+    // Always cancel any legacy consolidated overdue notification
+    await _notifications.cancel(_overdueNotificationId);
 
-    // Check frequency rules
-    if (!await _canFireMissedNotification()) return;
-
-    // Build grouped notification
-    final count = overdue.length;
-    final body = _getMissedGroupBody(overdue);
-
-    await _postNotification(
-      id: 88888, // Fixed ID for grouped missed notification
-      title: '📌 SuperNote',
-      body: body,
-      payload: 'missed_group',
-      withActions: false,
-    );
-
-    await _recordMissedNotification();
-    developer.log('Missed notification fired: $count tasks grouped', name: 'NotificationService');
+    // No push notification for overdue — handled by In-App UI only
+    developer.log('updateOverdueSummary: $overdueCount overdue tasks (in-app only, no push)', name: 'NotificationService');
   }
 
-  // ===== Test =====
+  // ===== QUIET HOURS =====
 
-  Future<bool> sendTestNotification() async {
-    if (_isLinux) return false;
-    if (!_initialized) await init();
-    if (!_initialized) return false;
+  /// Returns adjusted time if in quiet hours, or null if the original time is fine.
+  /// If adjusted time is too close to another notification, returns null (to signal dropping).
+  Future<tz.TZDateTime?> _adjustForQuietHours(tz.TZDateTime scheduled) async {
+    final (startHour, endHour) = await getQuietHours();
+    final h = scheduled.hour;
 
+    final inQuietHours = startHour > endHour
+        ? (h >= startHour || h < endHour)
+        : (h >= startHour && h < endHour);
+
+    if (!inQuietHours) return scheduled;
+
+    // Shift to end of quiet hours (07:00 or configured end)
+    final shifted = tz.TZDateTime(
+      scheduled.location,
+      scheduled.year, scheduled.month, scheduled.day,
+      endHour, 0, 0,
+    );
+
+    // If endHour is earlier than start (wraps midnight), and we're in the
+    // evening part, shift to next day's endHour
+    if (shifted.isBefore(scheduled)) {
+      return shifted.add(const Duration(days: 1));
+    }
+    return shifted;
+  }
+
+  // ===== LOW-LEVEL SCHEDULING =====
+
+  Future<void> _doSchedule({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required String payload,
+  }) async {
+    // Truncate microseconds
+    final cleanDate = tz.TZDateTime(
+      scheduledDate.location,
+      scheduledDate.year, scheduledDate.month, scheduledDate.day,
+      scheduledDate.hour, scheduledDate.minute, scheduledDate.second,
+    );
+
+    // Try inexact first — works reliably on all Android versions
     try {
-      final granted = await checkAndRequestPermissions();
-      if (!granted) return false;
+      await _notifications.zonedSchedule(
+        id, title, body, cleanDate,
+        _taskNotificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+      developer.log('zonedSchedule(inexact) OK id=$id at $cleanDate', name: 'NotificationService');
+      return;
     } catch (e) {
-      return false;
+      developer.log('Inexact alarm failed id=$id: $e', name: 'NotificationService');
     }
 
-    await _postNotification(
-      id: 99999,
-      title: '🔔 SuperNote',
-      body: 'Thông báo đã hoạt động! Bạn sẽ nhận được nhắc nhở đúng giờ.',
-      payload: 'test',
-    );
-
-    // Also schedule a test 60s from now
-    _scheduleTimer(
-      id: 99998,
-      title: '📋 SuperNote',
-      body: 'Đây là thông báo tự động sau 60 giây!',
-      fireAt: DateTime.now().add(const Duration(seconds: 60)),
-      payload: 'test_scheduled',
-    );
-
-    return true;
+    // Fallback: exact alarm
+    try {
+      await _notifications.zonedSchedule(
+        id, title, body, cleanDate,
+        _taskNotificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+      developer.log('zonedSchedule(exact) OK id=$id at $cleanDate', name: 'NotificationService');
+    } catch (e) {
+      developer.log('Exact alarm FAILED id=$id: $e — notification NOT scheduled', name: 'NotificationService');
+    }
   }
 
-  // ===== Quiet Hours =====
+  // ===== QUIET HOURS GET/SET =====
 
   Future<void> setQuietHours(int startHour, int endHour) async {
     final prefs = await SharedPreferences.getInstance();
@@ -468,17 +558,7 @@ class NotificationService {
     return (start, end);
   }
 
-  Future<bool> _isQuietHour(DateTime dt) async {
-    final (start, end) = await getQuietHours();
-    final hour = dt.hour;
-    if (start < end) {
-      return hour >= start && hour < end;
-    } else {
-      return hour >= start || hour < end;
-    }
-  }
-
-  // ===== Default Pre-Reminder =====
+  // ===== DEFAULT PRE-REMINDER =====
 
   Future<void> setDefaultPreReminder(int minutes) async {
     final prefs = await SharedPreferences.getInstance();
@@ -490,7 +570,46 @@ class NotificationService {
     return prefs.getInt(_prefsKeyDefaultPreReminder) ?? 0;
   }
 
-  // ===== Random Vietnamese Messages =====
+  // ===== TEST =====
+
+  Future<bool> sendTestNotification() async {
+    if (_isLinux) return false;
+    if (!_initialized) await init();
+    if (!_initialized) return false;
+
+    try {
+      final granted = await checkAndRequestPermissions();
+      if (!granted) return false;
+    } catch (e) {
+      return false;
+    }
+
+    await _postNotification(
+      id: 99998,
+      title: '🔔 SuperNote',
+      body: 'Thông báo đã hoạt động! Bạn sẽ nhận được nhắc nhở đúng giờ.',
+      payload: 'test',
+    );
+
+    return true;
+  }
+
+  Future<void> _postNotification({
+    required int id,
+    required String title,
+    required String body,
+    required String payload,
+    bool withActions = true,
+  }) async {
+    try {
+      await _notifications.show(id, title, body, _taskNotificationDetails(withActions: withActions), payload: payload);
+      developer.log('_postNotification SUCCESS id=$id "$title"', name: 'NotificationService');
+    } catch (e) {
+      developer.log('_postNotification FAILED id=$id: $e', name: 'NotificationService');
+    }
+  }
+
+  // ===== RANDOM VIETNAMESE MESSAGES =====
 
   static final _random = Random();
 
@@ -516,24 +635,6 @@ class NotificationService {
     '{title} - {duration} nữa là deadline, bạn ơi!',
   ];
 
-  static final _missedMessages = [
-    'Bạn có {count} việc chưa làm!',
-    'Nè, còn {count} việc chờ bạn xử lý!',
-    '{count} việc đang chờ, lẹ tay lên!',
-    'SuperNote nhắc: còn {count} việc chưa xong!',
-    'Bạn ơi, {count} việc bị bỏ lỡ nè!',
-    '{count} việc chưa hoàn thành, cố gắng lên!',
-    'Còn {count} việc đang chờ bạn, đừng quên!',
-    'Nhắc nhẹ: {count} việc còn dang dở!',
-  ];
-
-  static final _missedDetails = [
-    '• {title}',
-    '→ {title}',
-    '▸ {title}',
-    '● {title}',
-  ];
-
   String _getDeadlineBody(Task task) {
     final msg = _deadlineMessages[_random.nextInt(_deadlineMessages.length)];
     return msg.replaceAll('{title}', task.title);
@@ -544,30 +645,6 @@ class NotificationService {
     return msg
         .replaceAll('{title}', task.title)
         .replaceAll('{duration}', _formatDuration(task.preReminderOffset!));
-  }
-
-  /// Build grouped body for multiple overdue tasks
-  /// Shows: "Bạn có 5 việc chưa làm!\n• Task 1\n• Task 2\n• Task 3\nvà 2 việc nữa..."
-  String _getMissedGroupBody(List<Task> overdue) {
-    final count = overdue.length;
-    final msg = _missedMessages[_random.nextInt(_missedMessages.length)];
-    final header = msg.replaceAll('{count}', '$count');
-
-    if (count <= 3) {
-      // Show all tasks
-      final details = overdue.map((t) {
-        final d = _missedDetails[_random.nextInt(_missedDetails.length)];
-        return d.replaceAll('{title}', t.title);
-      }).join('\n');
-      return '$header\n$details';
-    } else {
-      // Show first 3 + "và N việc nữa..."
-      final shown = overdue.take(3).map((t) {
-        final d = _missedDetails[_random.nextInt(_missedDetails.length)];
-        return d.replaceAll('{title}', t.title);
-      }).join('\n');
-      return '$header\n$shown\nvà ${count - 3} việc nữa...';
-    }
   }
 
   String _formatDuration(int minutes) {

@@ -313,11 +313,17 @@ class _TaskScreenState extends State<TaskScreen> {
     final grouped = widget.taskService.getTasksGroupedByDate();
     var filtered = grouped;
     if (_showOverdueOnly) {
+      // Chỉ hiện task quá hạn
       filtered = grouped.map((k, v) => MapEntry(
           k, k == 'Overdue' ? v : []));
     } else if (_selectedCategory != null) {
+      // Filter theo category, bỏ qua task quá hạn
       filtered = grouped.map((k, v) => MapEntry(
-          k, v.where((t) => t.category == _selectedCategory).toList()));
+          k, k == 'Overdue' ? [] : v.where((t) => t.category == _selectedCategory).toList()));
+    } else {
+      // "Tất cả": ẩn task quá hạn, chỉ hiện các nhóm còn lại
+      filtered = grouped.map((k, v) => MapEntry(
+          k, k == 'Overdue' ? [] : v));
     }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();

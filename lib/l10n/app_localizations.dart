@@ -1525,6 +1525,45 @@ abstract class AppLocalizations {
   /// In vi, this message translates to:
   /// **'Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.'**
   String get aiGreeting;
+
+  /// No description provided for @feedback.
+  String get feedback;
+
+  /// No description provided for @feedbackTitle.
+  String get feedbackTitle;
+
+  /// No description provided for @feedbackSubtitle.
+  String get feedbackSubtitle;
+
+  /// No description provided for @feedbackDesc.
+  String get feedbackDesc;
+
+  /// No description provided for @feedbackHint.
+  String get feedbackHint;
+
+  /// No description provided for @feedbackSubmit.
+  String get feedbackSubmit;
+
+  /// No description provided for @feedbackSuccess.
+  String get feedbackSuccess;
+
+  /// No description provided for @feedbackError.
+  String get feedbackError;
+
+  /// No description provided for @feedbackSetup.
+  String get feedbackSetup;
+
+  /// No description provided for @feedbackSetupDesc.
+  String get feedbackSetupDesc;
+
+  /// No description provided for @feedbackSetupSave.
+  String get feedbackSetupSave;
+
+  /// No description provided for @feedbackChangeUrl.
+  String get feedbackChangeUrl;
+
+  /// No description provided for @feedbackUrlCleared.
+  String get feedbackUrlCleared;
 }
 
 class _AppLocalizationsDelegate

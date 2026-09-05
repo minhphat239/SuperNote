@@ -746,4 +746,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiGreeting =>
       'Hello! I\'m SuperNote\'s AI assistant.\nYou can ask me about tasks, schedules, or ask me to analyze your work.';
+
+  @override
+  String get feedback => 'Feedback';
+
+  @override
+  String get feedbackTitle => 'Send Feedback';
+
+  @override
+  String get feedbackSubtitle => 'Report bugs or suggest improvements';
+
+  @override
+  String get feedbackDesc => 'Your feedback helps us improve. It will be sent anonymously to the development team.';
+
+  @override
+  String get feedbackHint => 'Describe the issue or your suggestion...';
+
+  @override
+  String get feedbackSubmit => 'Send Feedback';
+
+  @override
+  String get feedbackSuccess => 'Feedback sent successfully! Thank you.';
+
+  @override
+  String get feedbackError => 'Failed to send feedback. Please try again.';
+
+  @override
+  String get feedbackSetup => 'Setup Feedback';
+
+  @override
+  String get feedbackSetupDesc => 'Enter your Google Apps Script Web App URL to receive feedback.';
+
+  @override
+  String get feedbackSetupSave => 'Save URL';
+
+  @override
+  String get feedbackChangeUrl => 'Change URL';
+
+  @override
+  String get feedbackUrlCleared => 'URL cleared';
 }

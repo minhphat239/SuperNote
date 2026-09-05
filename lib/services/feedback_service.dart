@@ -38,18 +38,6 @@ class FeedbackService {
     }
   }
 
-  Future<void> toggleSound(bool enabled) async {
-    _soundEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('feedback_sound', enabled);
-  }
-
-  Future<void> toggleHaptic(bool enabled) async {
-    _hapticEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('feedback_haptic', enabled);
-  }
-
   void trigger(FeedbackType type) {
     _haptic(type);
     _sound(type);

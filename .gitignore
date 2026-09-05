@@ -46,3 +46,27 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Android local config
+/android/local.properties
+
+# Screenshots (keep in docs, not in repo root)
+_screenshot*.png
+_ss_*.png
+_ss*.png
+
+# Logs and temp files
+logcat_output.txt
+flutter_run.log
+
+# Test/temp files
+test_task.json
+
+# Version notes
+v1.0.1.MD
+
+# Scripts
+run.sh
+
+# Root logo duplicate
+/logo.png

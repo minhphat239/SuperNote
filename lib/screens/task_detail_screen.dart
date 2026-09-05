@@ -40,24 +40,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (_isSaving) return;
-    _isSaving = true;
-    final title = _titleCtrl.text.trim();
-    if (title.isEmpty && _noteCtrl.text.trim().isEmpty) return;
-
-    final newStatus = _isDone ? TaskStatus.done : TaskStatus.pending;
-
-    await widget.taskService.updateTask(
-      widget.task.id,
-      title: title.isNotEmpty ? title : 'Untitled',
-      noteContent: _noteCtrl.text.trim(),
-      status: newStatus,
-    );
-
-    if (mounted) Navigator.pop(context, true);
-  }
-
   Future<void> _saveAndPop() async {
     if (_isSaving) return;
     _isSaving = true;

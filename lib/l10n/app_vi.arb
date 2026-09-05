@@ -269,5 +269,18 @@
   "authGenericError": "Đã xảy ra lỗi. Vui lòng thử lại.",
   "authForgotPassword": "Quên mật khẩu?",
   "authPasswordResetSent": "Đã gửi email đặt lại mật khẩu. Kiểm tra hộp thư.",
-  "aiGreeting": "Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc."
+  "aiGreeting": "Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.",
+  "feedback": "Phản hồi",
+  "feedbackTitle": "Gửi phản hồi",
+  "feedbackSubtitle": "Báo lỗi hoặc gợi ý cải thiện",
+  "feedbackDesc": "Phản hồi của bạn giúp chúng tôi cải thiện ứng dụng. Nó sẽ được gửi ẩn danh đến đội ngũ phát triển.",
+  "feedbackHint": "Mô tả lỗi hoặc gợi ý của bạn...",
+  "feedbackSubmit": "Gửi phản hồi",
+  "feedbackSuccess": "Gửi phản hồi thành công! Cảm ơn bạn.",
+  "feedbackError": "Gửi phản hồi thất bại. Vui lòng thử lại.",
+  "feedbackSetup": "Cài đặt Phản hồi",
+  "feedbackSetupDesc": "Nhập URL Google Apps Script Web App để nhận phản hồi.",
+  "feedbackSetupSave": "Lưu URL",
+  "feedbackChangeUrl": "Đổi URL",
+  "feedbackUrlCleared": "Đã xóa URL"
 }

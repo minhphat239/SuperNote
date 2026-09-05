@@ -60,6 +60,7 @@ class TaskService {
     }
     try {
       await _notificationService.init();
+      _notificationService.setTaskProvider(() => tasks);
     } catch (e) {
       developer.log('Notification init failed', error: e, name: 'TaskService');
     }
@@ -171,7 +172,7 @@ class TaskService {
 
       // Clean up guest data
       await prefs.remove('$_prefix${'guest'}');
-      await prefs.remove('${_prefix}${'guest'}_backup');
+      await prefs.remove('$_prefix${'guest'}_backup');
     } catch (e) {
       developer.log('Guest data migration failed', error: e, name: 'TaskService');
     }
@@ -411,7 +412,7 @@ class TaskService {
     if (newStatus == TaskStatus.done) {
       _feedback.trigger(FeedbackType.complete);
       try {
-        await _notificationService.cancelTaskNotifications(current);
+        await _notificationService.cancelTaskReminder(current.id);
       } catch (e) {
         developer.log('Cancel notifications failed', error: e, name: 'TaskService');
       }
@@ -424,6 +425,12 @@ class TaskService {
       } catch (e) {
         developer.log('Schedule notification failed', error: e, name: 'TaskService');
       }
+    }
+    // Always refresh consolidated overdue notification after toggle
+    try {
+      await _notificationService.updateOverdueSummary(tasks);
+    } catch (e) {
+      developer.log('Update overdue summary failed', error: e, name: 'TaskService');
     }
   }
 
@@ -515,10 +522,16 @@ class TaskService {
       );
       await _saveTasks();
       try {
-        await _notificationService.cancelTaskNotifications(current);
+        await _notificationService.cancelTaskReminder(current.id);
         await _notificationService.scheduleTaskNotification(_tasks[index]);
       } catch (e) {
         developer.log('Snooze notification failed', error: e, name: 'TaskService');
+      }
+      // Refresh consolidated overdue notification after snooze
+      try {
+        await _notificationService.updateOverdueSummary(tasks);
+      } catch (e) {
+        developer.log('Update overdue summary failed', error: e, name: 'TaskService');
       }
     }
   }
@@ -528,13 +541,19 @@ class TaskService {
     if (index == -1) return;
     final task = _tasks[index];
     try {
-      await _notificationService.cancelTaskNotifications(task);
+      await _notificationService.cancelTaskReminder(task.id);
     } catch (e) {
       developer.log('Cancel notifications failed', error: e, name: 'TaskService');
     }
     _tasks.removeAt(index);
     await _saveTasks();
     _feedback.trigger(FeedbackType.delete);
+    // Refresh consolidated overdue notification after delete
+    try {
+      await _notificationService.updateOverdueSummary(tasks);
+    } catch (e) {
+      developer.log('Update overdue summary failed', error: e, name: 'TaskService');
+    }
   }
 
   Future<void> updateTask(
@@ -572,12 +591,18 @@ class TaskService {
       _tasks[index] = updated;
       await _saveTasks();
       try {
-        await _notificationService.cancelTaskNotifications(current);
+        await _notificationService.cancelTaskReminder(current.id);
         if (updated.status == TaskStatus.pending || updated.status == TaskStatus.snoozed) {
           await _notificationService.scheduleTaskNotification(updated);
         }
       } catch (e) {
         developer.log('Notification update failed', error: e, name: 'TaskService');
+      }
+      // Refresh consolidated overdue notification after update
+      try {
+        await _notificationService.updateOverdueSummary(tasks);
+      } catch (e) {
+        developer.log('Update overdue summary failed', error: e, name: 'TaskService');
       }
     }
   }

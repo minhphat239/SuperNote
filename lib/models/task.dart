@@ -96,9 +96,8 @@ class Task {
       return DateTime(dueDate!.year, dueDate!.month, dueDate!.day,
           dueTime!.hour, dueTime!.minute);
     }
-    // No specific time → treat as end-of-day so a task created today
-    // (dueDate = today, dueTime = null) is NOT marked overdue until midnight passes.
-    return DateTime(dueDate!.year, dueDate!.month, dueDate!.day, 23, 59, 59);
+    // No specific time → Default Smart Time: 09:00 AM (start of work day)
+    return DateTime(dueDate!.year, dueDate!.month, dueDate!.day, 9, 0, 0);
   }
 
   bool get isDone => status == TaskStatus.done;
@@ -175,15 +174,15 @@ class Task {
     return Task(
       id: id,
       title: title ?? this.title,
-      description: identical(description, _sentinel) ? this.description : (description as String? ?? ''),
-      noteContent: identical(noteContent, _sentinel) ? this.noteContent : (noteContent as String? ?? ''),
+      description: identical(description, _sentinel) ? this.description : (description as String? ?? this.description),
+      noteContent: identical(noteContent, _sentinel) ? this.noteContent : (noteContent as String? ?? this.noteContent),
       subtasks: subtasks ?? this.subtasks,
       dueDate: identical(dueDate, _sentinel) ? this.dueDate : dueDate as DateTime?,
       dueTime: identical(dueTime, _sentinel) ? this.dueTime : dueTime as DateTime?,
       category: category ?? this.category,
-      repeatRule: identical(repeatRule, _sentinel) ? this.repeatRule : repeatRule as String?,
-      repeatEndDate: identical(repeatEndDate, _sentinel) ? this.repeatEndDate : repeatEndDate as DateTime?,
-      preReminderOffset: identical(preReminderOffset, _sentinel) ? this.preReminderOffset : preReminderOffset as int?,
+      repeatRule: identical(repeatRule, _sentinel) ? this.repeatRule : (repeatRule as String? ?? this.repeatRule),
+      repeatEndDate: identical(repeatEndDate, _sentinel) ? this.repeatEndDate : (repeatEndDate as DateTime? ?? this.repeatEndDate),
+      preReminderOffset: identical(preReminderOffset, _sentinel) ? this.preReminderOffset : (preReminderOffset as int? ?? this.preReminderOffset),
       status: status ?? this.status,
       attachments: attachments ?? this.attachments,
       createdAt: createdAt,

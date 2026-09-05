@@ -12,11 +12,13 @@ import '../services/theme_service.dart';
 import '../services/task_service.dart';
 import '../services/custom_background_service.dart';
 import '../services/language_service.dart';
+import '../services/user_feedback_service.dart';
 import '../l10n/app_localizations.dart';
 import 'auth_screen.dart';
 import 'past_tasks_screen.dart';
 import 'stats_screen.dart';
 import '../shared/widgets/cyberpunk_background.dart';
+import '../shared/widgets/theme_preview_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AuthService authService;
@@ -44,8 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final NotificationService _notifService = NotificationService();
   final _geminiKeyController = TextEditingController();
 
-  bool _notificationSound = true;
-  bool _notificationVibration = true;
   int _defaultPreReminder = 0;
   int _quietStart = 22;
   int _quietEnd = 7;
@@ -123,24 +123,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ===== NOTIFICATIONS (second — most used) =====
                 _buildSectionTitle(AppLocalizations.of(context)!.sectionNotifications),
                 _buildCard([
-                  _buildSwitchTile(
-                    icon: Icons.notifications_rounded,
-                    iconColor: AppColors.primary,
-                    title: AppLocalizations.of(context)!.notifSound,
-                    subtitle: AppLocalizations.of(context)!.notifSoundDesc,
-                    value: _notificationSound,
-                    onChanged: (v) => setState(() => _notificationSound = v),
-                  ),
-                  _buildDivider(),
-                  _buildSwitchTile(
-                    icon: Icons.vibration_rounded,
-                    iconColor: AppColors.orange,
-                    title: AppLocalizations.of(context)!.notifVibration,
-                    subtitle: AppLocalizations.of(context)!.notifVibrationDesc,
-                    value: _notificationVibration,
-                    onChanged: (v) => setState(() => _notificationVibration = v),
-                  ),
-                  _buildDivider(),
                   _buildPickerTile(
                     icon: Icons.timer_rounded,
                     iconColor: AppColors.green,
@@ -245,6 +227,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'SuperNote',
                     subtitle: 'v$_appVersion',
                     onTap: _showAboutDialog,
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.sm),
+
+                // ===== FEEDBACK =====
+                _buildSectionTitle(AppLocalizations.of(context)!.feedback),
+                _buildCard([
+                  _buildTapTile(
+                    icon: Icons.feedback_rounded,
+                    iconColor: AppColors.teal,
+                    title: AppLocalizations.of(context)!.feedbackTitle,
+                    subtitle: AppLocalizations.of(context)!.feedbackSubtitle,
+                    onTap: _showFeedbackDialog,
                   ),
                 ]),
               ]),
@@ -609,6 +604,271 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showFeedbackDialog() async {
+    final service = UserFeedbackService();
+    final url = await service.getFeedbackUrl();
+
+    if (!mounted) return;
+
+    // Nếu chưa có URL → hiện dialog setup
+    if (url == null || url.isEmpty) {
+      _showFeedbackSetupDialog();
+      return;
+    }
+
+    // Đã có URL → hiện form gửi feedback
+    _showFeedbackForm();
+  }
+
+  void _showFeedbackSetupDialog() {
+    final urlController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.settings_rounded, color: AppColors.teal, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    AppLocalizations.of(context)!.feedbackSetup,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AppLocalizations.of(context)!.feedbackSetupDesc,
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: urlController,
+                autofocus: true,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'https://script.google.com/macros/s/...',
+                  hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  filled: true,
+                  fillColor: AppColors.glassTint.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.teal, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final url = urlController.text.trim();
+                    if (url.isEmpty) return;
+
+                    final svc = UserFeedbackService();
+                    await svc.setFeedbackUrl(url);
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+
+                    _showFeedbackForm();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.feedbackSetupSave,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeedbackForm() {
+    final controller = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.feedback_rounded, color: AppColors.teal, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    AppLocalizations.of(context)!.feedback,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AppLocalizations.of(context)!.feedbackDesc,
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLines: 5,
+                minLines: 3,
+                autofocus: true,
+                style: const TextStyle(fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!.feedbackHint,
+                  hintStyle: TextStyle(color: AppColors.textMuted),
+                  filled: true,
+                  fillColor: AppColors.glassTint.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.teal, width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Nút xóa URL đã lưu
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () async {
+                    final svc = UserFeedbackService();
+                    await svc.setFeedbackUrl('');
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    _showSnack(AppLocalizations.of(context)!.feedbackUrlCleared);
+                  },
+                  child: Text(
+                    AppLocalizations.of(context)!.feedbackChangeUrl,
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final msg = controller.text.trim();
+                          if (msg.isEmpty) return;
+
+                          setModalState(() => isSubmitting = true);
+
+                          final service = UserFeedbackService();
+                          final result = await service.submitFeedback(msg);
+
+                          if (!mounted) return;
+                          Navigator.pop(ctx);
+
+                          _showSnack(
+                            result.success
+                                ? AppLocalizations.of(context)!.feedbackSuccess
+                                : result.message,
+                            backgroundColor: result.success ? AppColors.green : AppColors.error,
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          AppLocalizations.of(context)!.feedbackSubmit,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ===== ACTIONS =====
   void _saveGeminiKey() async {
     final key = _geminiKeyController.text.trim();
@@ -882,24 +1142,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [theme.borderStart, theme.borderEnd],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: isSelected
-                                ? [BoxShadow(
-                                    color: theme.accent.withValues(alpha: 0.4),
-                                    blurRadius: 10,
-                                  )]
-                                : null,
-                          ),
-                          child: isSelected
-                              ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                              : null,
+                        ThemePreviewWidget(
+                          theme: theme,
+                          isSelected: isSelected,
+                          size: 32,
                         ),
                         const SizedBox(height: 8),
                         Text(

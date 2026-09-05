@@ -27,6 +27,8 @@ import 'services/notification_service.dart';
 import 'services/firestore_repository.dart';
 import 'services/ai_parser_service.dart';
 import 'services/custom_background_service.dart';
+import 'services/inactivity_retention_service.dart';
+import 'services/fcm_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/task_screen.dart';
 import 'screens/calendar_screen.dart';
@@ -195,6 +197,8 @@ class BootstrapServices {
   final AutoUpdateService updateService;
   final CustomBackgroundService? customBackgroundService;
   final LanguageService languageService;
+  final InactivityRetentionService inactivityService;
+  final FcmService fcmService;
   final StreamSubscription<bool>? _authSubscription;
 
   BootstrapServices({
@@ -207,6 +211,8 @@ class BootstrapServices {
     required this.updateService,
     this.customBackgroundService,
     required this.languageService,
+    required this.inactivityService,
+    required this.fcmService,
     StreamSubscription<bool>? authSubscription,
   }) : _authSubscription = authSubscription;
 
@@ -359,6 +365,28 @@ Future<BootstrapServices> _initServices() async {
   }
   StartupLog.mark('language');
 
+  // ===== INACTIVITY RETENTION =====
+  final inactivityService = InactivityRetentionService();
+  try {
+    StartupLog.mark('inactivity-init');
+    await inactivityService.init();
+    StartupLog.mark('inactivity-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
+  StartupLog.mark('inactivity');
+
+  // ===== FCM =====
+  final fcmService = FcmService();
+  try {
+    StartupLog.mark('fcm-init');
+    await fcmService.init();
+    StartupLog.mark('fcm-ready');
+  } catch (e) {
+    StartupLog.logCrash(e, StackTrace.current);
+  }
+  StartupLog.mark('fcm');
+
   // Listen to auth changes → reload per-user data
   StartupLog.mark('authListener-init');
   final authSubscription = authService.authStateChanges.listen((isLoggedIn) async {
@@ -381,6 +409,8 @@ Future<BootstrapServices> _initServices() async {
     updateService: updateService,
     customBackgroundService: customBackgroundService,
     languageService: languageService,
+    inactivityService: inactivityService,
+    fcmService: fcmService,
     authSubscription: authSubscription,
   );
 }
@@ -400,6 +430,7 @@ class SuperNoteAppShell extends StatelessWidget {
     final updateService = services.updateService;
     final customBackgroundService = services.customBackgroundService;
     final languageService = services.languageService;
+    final inactivityService = services.inactivityService;
 
     return ListenableBuilder(
       listenable: Listenable.merge([themeService, languageService]),
@@ -435,6 +466,7 @@ class SuperNoteAppShell extends StatelessWidget {
                   updateService: updateService,
                   customBackgroundService: customBackgroundService,
                   languageService: languageService,
+                  inactivityService: inactivityService,
                 );
               }
 
@@ -460,6 +492,7 @@ class MainShell extends StatefulWidget {
   final AutoUpdateService updateService;
   final CustomBackgroundService? customBackgroundService;
   final LanguageService languageService;
+  final InactivityRetentionService inactivityService;
 
   const MainShell({
     super.key,
@@ -472,6 +505,7 @@ class MainShell extends StatefulWidget {
     required this.updateService,
     this.customBackgroundService,
     required this.languageService,
+    required this.inactivityService,
   });
 
   @override
@@ -675,11 +709,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkNotificationPermission();
-      await widget.taskService.rescheduleNotifications();
-      await NotificationService().updateOverdueSummary(widget.taskService.tasks);
+      widget.taskService.rescheduleNotifications();
+      widget.inactivityService.onResume();
       _checkForUpdates();
     }
   }

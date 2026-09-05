@@ -745,4 +745,43 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String get aiGreeting =>
       'Xin chào! Mình là AI trợ lý của SuperNote.\nBạn có thể hỏi mình về task, lịch trình, hoặc nhờ mình phân tích công việc.';
+
+  @override
+  String get feedback => 'Phản hồi';
+
+  @override
+  String get feedbackTitle => 'Gửi phản hồi';
+
+  @override
+  String get feedbackSubtitle => 'Báo lỗi hoặc gợi ý cải thiện';
+
+  @override
+  String get feedbackDesc => 'Phản hồi của bạn giúp chúng tôi cải thiện ứng dụng. Nó sẽ được gửi ẩn danh đến đội ngũ phát triển.';
+
+  @override
+  String get feedbackHint => 'Mô tả lỗi hoặc gợi ý của bạn...';
+
+  @override
+  String get feedbackSubmit => 'Gửi phản hồi';
+
+  @override
+  String get feedbackSuccess => 'Gửi phản hồi thành công! Cảm ơn bạn.';
+
+  @override
+  String get feedbackError => 'Gửi phản hồi thất bại. Vui lòng thử lại.';
+
+  @override
+  String get feedbackSetup => 'Cài đặt Phản hồi';
+
+  @override
+  String get feedbackSetupDesc => 'Nhập URL Google Apps Script Web App để nhận phản hồi.';
+
+  @override
+  String get feedbackSetupSave => 'Lưu URL';
+
+  @override
+  String get feedbackChangeUrl => 'Đổi URL';
+
+  @override
+  String get feedbackUrlCleared => 'Đã xóa URL';
 }
